@@ -1,4 +1,4 @@
-# Bienvenido a la Documentación de la Organización  
+# Bienvenido a la Documentación de Transformación Digital  
 
 📚 **Secciones**:  
 - [Guías Rápidas](guias/inicio-rapido)  
