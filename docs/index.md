@@ -1,7 +1,7 @@
 # Bienvenido a la Documentación de Transformación Digital  
 
 📚 **Secciones**:  
-- [Guías Rápidas](guias/inicio-rapido.md)  
+- [Guías Rápidas](../guias/inicio-rapido.md)  
 - [Proyectos](proyectos/proyecto-a.md)  
 
 ---
