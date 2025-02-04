@@ -1,0 +1,28 @@
+# --- Configuración Base ---
+title: "Documentación Transformación Digital"
+description: "Guías, tutoriales y blogs para el área de Transformación Digital"
+author: "Nombre de la Organización o del Autor"
+timezone: "America/Lima"
+
+# --- Entorno de GitHub Pages ---
+url: "https://org-nsp-pacificoprestacion.github.io"
+baseurl: "/nsp-tfd-docs-uti-portal"  # Usa variables para flexibilidad
+repository: "org-nsp-pacificoprestacion/nsp-tfd-docs-uti-portal"
+
+# --- Tema y Plugins ---
+theme: jekyll-theme-cayman
+
+# --- Personalización del Tema ---
+show_downloads: false
+color_theme: "slate"
+
+# --- Build Settings ---
+markdown: kramdown
+permalink: /:categories/:title/
+exclude:
+  - Dockerfile
+  - docker-compose.yml
+  - Gemfile*
+  - .github/
+  - .gitignore
+  - README.md

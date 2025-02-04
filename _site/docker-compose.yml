@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  jekyll:
+    build:
+      context: .
+      args:
+        RUBY_VERSION: "3.0"
+        BUNDLER_VERSION: "2.3.5"
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/usr/src/app
+    command: bundle exec jekyll serve --host 0.0.0.0 --config _config.yml,_config_dev.yml
