@@ -5,9 +5,9 @@ author: "Nombre de la Organización o del Autor"
 timezone: "America/Lima"
 
 # --- Entorno de GitHub Pages ---
-url: "https://org-nsp-pacificoprestacion.github.io"
-baseurl: "/nsp-tfd-docs-uti-portal"  # Usa variables para flexibilidad
-repository: "org-nsp-pacificoprestacion/nsp-tfd-docs-uti-portal"
+url: "https://ads42693.github.io"
+baseurl: "/test-pages"  # Usa variables para flexibilidad
+repository: "ads42693.github.io/test-pages"
 
 # --- Tema y Plugins ---
 theme: jekyll-theme-cayman
