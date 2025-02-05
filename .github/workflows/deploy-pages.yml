@@ -28,6 +28,9 @@ jobs:
           bundler: "2.3.5"
           bundler-cache: true
 
+      - name: Update Bundler
+        run: gem install bundler
+
       - name: Install dependencies
         run: |
           bundle update uri
