@@ -11,22 +11,19 @@ title: "Inicio"
 - [Repositorios]({{ site.baseurl }}/repositorios/)
 - [Tutoriales]({{ site.baseurl }}/tutoriales/)
 - [Blogs]({{ site.baseurl }}/blogs/)
-- [Wiki Colaborativa]({{ site.baseurl }}/wiki/)  <!-- Nuevo enlace -->
+- [Wiki Colaborativa]({{ site.baseurl }}/wiki/)
 
 ---
 
 ## 📚 Wikis Integradas
 
-### Wiki Principal
-{% assign main_pages = site.wikis | where: "wiki_source", "main" %}
-{% for page in main_pages %}
-- [{{ page.title }}]({{ page.url }})
-{% endfor %}
+{% assign grouped_wikis = site.wikis | group_by: "wiki_source" %}
 
-### Skills Wiki
-{% assign skills_pages = site.wikis | where: "wiki_source", "skills-wiki" %}
-{% for page in skills_pages %}
-- [{{ page.title }}]({{ page.url }})
+{% for wiki_group in grouped_wikis %}
+### {{ wiki_group.name | replace: "-", " " | capitalize }}
+{% for page in wiki_group.items %}
+- [{{ page.title }}]({{ page.url | relative_url }})
+{% endfor %}
 {% endfor %}
 
 ---

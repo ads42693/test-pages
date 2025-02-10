@@ -1,4 +1,4 @@
-name: Deploy Jekyll with Multi-Wiki Integration
+name: Deploy Jekyll with Dynamic Wikis
 
 on:
   push:
@@ -21,6 +21,20 @@ jobs:
     steps:
       - name: Checkout main repository
         uses: actions/checkout@v4
+        with:
+          path: main-repo
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          pip install yq
+
+      - name: Load Wiki Config
+        id: wiki-config
+        run: |
+          cd main-repo
+          echo "WIKIS=$(yq -o=json '.wikis' config/wikis.yml)" >> $GITHUB_OUTPUT
 
       - name: Checkout Main Wiki
         uses: actions/checkout@v4
@@ -28,11 +42,15 @@ jobs:
           repository: ${{ github.repository }}.wiki
           path: wikis/main
 
-      - name: Checkout Other Wikis
+      - name: Checkout External Wikis
         run: |
-          mkdir -p wikis/otros
-          # Corregido: Especificar directorio destino para el clone
-          git clone https://github.com/ads42693/skills-github-pages.wiki.git wikis/otros/skills-wiki
+          mkdir -p wikis/external
+          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+            name=$(echo "$wiki" | jq -r '.name')
+            url=$(echo "$wiki" | jq -r '.url')
+            echo "🔄 Cloning $name from $url"
+            git clone "$url" "wikis/external/$name"
+          done
 
       - name: Setup Ruby environment
         uses: ruby/setup-ruby@v1
@@ -41,29 +59,37 @@ jobs:
           bundler: "2.3.5"
           bundler-cache: true
 
-      - name: Install dependencies
-        run: bundle install --jobs=4 --retry 3 --binstubs
-
-      - name: Sync Wiki content
+      - name: Process Wikis
         run: |
           mkdir -p _wikis
           
-          # Procesar Wiki Principal
-          cp -R wikis/main _wikis/
-          find _wikis/main -name "*.md" -exec sed -i '1s/^/---\nlayout: default\ntitle: "Página Wiki"\nwiki_source: main\n---\n/' {} \;
-
-          # Procesar Wikis Externas (corregido: usar path correcto)
-          for wiki in wikis/otros/*; do
-            dir_name=$(basename $wiki)
-            cp -R $wiki _wikis/$dir_name
-            find _wikis/$dir_name -name "*.md" -exec sed -i "1s/^/---\nlayout: default\ntitle: \"Página Wiki\"\nwiki_source: $dir_name\n---\n/" {} \;
+          # Procesar todas las wikis
+          find wikis -mindepth 1 -maxdepth 2 -type d | while read -r wiki_dir; do
+            wiki_name=$(basename "$wiki_dir")
+            echo "📂 Processing $wiki_name..."
+            
+            # Copiar contenido
+            mkdir -p "_wikis/$wiki_name"
+            cp -R "$wiki_dir"/* "_wikis/$wiki_name/"
+            
+            # Inyectar front matter
+            find "_wikis/$wiki_name" -name "*.md" -exec sed -i "1s/^/---\nlayout: default\ntitle: \"Página Wiki\"\nwiki_source: $wiki_name\n---\n/" {} \;
+            
+            # Normalizar nombres
+            find "_wikis/$wiki_name" -name "* *" -exec rename "s/ /-/g" {} \;
           done
 
-          # Normalizar nombres de archivos
-          find _wikis -name "* *" -exec rename "s/ /-/g" {} \;
-
       - name: Build Jekyll site
-        run: bundle exec jekyll build --config _config.yml
+        run: |
+          cd main-repo
+          bundle exec jekyll build --config _config.yml --destination ../_site
+          cd ..
+
+      - name: Validate build
+        run: |
+          echo "🔍 Generated content:"
+          tree -L 3 _site/wiki
+          grep -r "wiki_source" _site/wiki
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
