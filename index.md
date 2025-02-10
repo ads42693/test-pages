@@ -17,7 +17,7 @@ title: "Inicio"
 
 ## 📚 Wikis Integradas
 
-{% assign grouped_wikis = site.wikis | group_by: "wiki_source" %}
+{% assign grouped_wikis = site.wiki | group_by: "wiki_source" %}
 
 {% for wiki_group in grouped_wikis %}
 ### {{ wiki_group.name | replace: "-", " " | capitalize }}
