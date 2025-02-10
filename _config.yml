@@ -17,6 +17,11 @@ collections:
 
 # --- Tema y Plugins ---
 theme: jekyll-theme-cayman
+plugins:
+  - jekyll-theme-cayman
+  - jekyll-paginate
+  - jekyll-include-cache
+  - jekyll-archives
 
 # --- Personalización del Tema ---
 show_downloads: false
@@ -33,3 +38,12 @@ exclude:
   - .gitignore
   - README.md
   - vendor
+
+# --- Configuración de la colección de wikis ---
+defaults:
+  - scope:
+      path: ""
+      type: wiki
+    values:
+      layout: cayman
+      title: "Página Wiki"
