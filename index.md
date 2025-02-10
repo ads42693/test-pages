@@ -15,9 +15,19 @@ title: "Inicio"
 
 ---
 
-## Wiki
-{% for page in site.wiki %}
+## Wikis Centralizadas
+
+### Documentación Principal
+{% for page in site.wikis.main %}
 - [{{ page.title }}]({{ page.url }})
+{% endfor %}
+
+### Proyectos Externos
+{% for wiki in site.wikis.otros %}
+#### {{ wiki[0] | replace: "-", " " | capitalize }}
+{% for page in wiki[1] %}
+- [{{ page.title }}]({{ page.url }})
+{% endfor %}
 {% endfor %}
 
 ---

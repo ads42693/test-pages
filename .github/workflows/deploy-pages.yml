@@ -1,4 +1,4 @@
-name: Deploy Jekyll with GitHub Pages and Wiki Integration
+name: Deploy Jekyll with Multi-Wiki Integration
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  pull-requests: write  # Nuevo permiso para manejar wikis
+  pull-requests: write
 
 concurrency:
   group: "pages"
@@ -22,11 +22,18 @@ jobs:
       - name: Checkout main repository
         uses: actions/checkout@v4
 
-      - name: Checkout Wiki repository
+      - name: Checkout Main Wiki
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}.wiki
-          path: wiki-content
+          path: wikis/main
+
+      - name: Checkout Other Wikis
+        run: |
+          mkdir -p wikis/otros
+          # Lista de wikis externas (¡personaliza estos URLs!)
+          git clone https://github.com/tuorg/repo1.wiki.git wikis/otros/repo1
+          git clone https://github.com/tuorg/repo2.wiki.git wikis/otros/repo2
 
       - name: Setup Ruby environment
         uses: ruby/setup-ruby@v1
@@ -40,9 +47,15 @@ jobs:
 
       - name: Sync Wiki content
         run: |
-          mkdir -p _wiki
-          cp -R wiki-content/* _wiki/
-          find _wiki -name "*.md" -exec sed -i '1s/^/---\nlayout: default\n---\n/' {} \;
+          mkdir -p _wikis
+          # Copia todas las wikis preservando estructura
+          cp -R wikis/* _wikis/
+          
+          # Normaliza nombres de archivos
+          find _wikis -name "* *" -exec rename "s/ /-/g" {} \;
+          
+          # Inyecta front matter con layout del tema
+          find _wikis -name "*.md" -exec sed -i '1s/^/---\nlayout: default\n---\n/' {} \;
 
       - name: Build Jekyll site
         run: bundle exec jekyll build --config _config.yml
