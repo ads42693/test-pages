@@ -27,9 +27,10 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
+          sudo apt-get remove -y yq || true
           sudo apt-get install -y jq snapd rename
           sudo snap install yq
-          sudo ln -s /snap/bin/yq /usr/bin/yq
+          sudo ln -sf /snap/bin/yq /usr/bin/yq || true
 
       - name: Load Wiki Config
         id: wiki-config
