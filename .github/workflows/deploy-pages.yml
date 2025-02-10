@@ -21,82 +21,66 @@ jobs:
     steps:
       - name: Checkout main repository
         uses: actions/checkout@v4
-        with:
-          path: main-repo
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get remove -y yq || true
-          sudo apt-get install -y jq snapd rename
-          sudo snap install yq
-          sudo ln -sf /snap/bin/yq /usr/bin/yq || true
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Load Wiki Config
         id: wiki-config
         run: |
-          cd main-repo
-          WIKIS_JSON=$(yq eval -o=json '.wikis' config/wikis.yml || echo "[]")
-          echo "WIKIS_JSON=${WIKIS_JSON}" >> $GITHUB_ENV
+          WIKIS_JSON=$(ruby -r yaml -r json -e '
+            begin
+              puts YAML.load_file("config/wikis.yml")["wikis"].to_json
+            rescue
+              puts [].to_json
+            end
+          ')
+          echo "WIKIS=${WIKIS_JSON}" >> $GITHUB_OUTPUT
 
-      - name: Checkout Main Wiki
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }}.wiki
-          path: wikis/main
-          sparse-checkout: "*.md"  # Solo archivos Markdown
-
-      - name: Checkout External Wikis
+      - name: Checkout Wikis
         run: |
-          mkdir -p wikis/external
-          echo "${{ env.WIKIS_JSON }}" | jq -c '.[]' | while read -r wiki; do
-            name=$(echo "$wiki" | jq -r '.name')
+          mkdir -p wikis
+          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+            name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
-            git clone "$url" "wikis/external/$name" --depth 1 --config core.sparseCheckout=true --filter=blob:none || echo "⚠️ Falló clonación de $name"
+            git clone "$url" "wikis/${name}" --depth 1 --single-branch --quiet || true
           done
 
-      - name: Setup Ruby environment
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.1"
-          bundler: "2.4.22"  # Versión compatible con Cayman
           bundler-cache: true
-          working-directory: main-repo
 
       - name: Process Wikis
         run: |
           mkdir -p _wikis
           
-          # Procesar Wiki Principal
-          if [ -d "wikis/main" ]; then
-            cp -R wikis/main _wikis/main
-            find "_wikis/main" -name "*.md" -exec sed -i '1s/^/---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: main\n---\n/' {} \;
-          fi
-
-          # Procesar Wikis Externas
-          if [ -d "wikis/external" ]; then
-            find wikis/external -mindepth 1 -maxdepth 1 -type d | while read -r wiki_dir; do
-              wiki_name=$(basename "$wiki_dir")
-              cp -R "$wiki_dir" "_wikis/$wiki_name"
-              find "_wikis/$wiki_name" -name "*.md" -exec sed -i "1s/^/---\nlayout: cayman\ntitle: \"Página Wiki\"\nwiki_source: $wiki_name\n---\n/" {} \;
-            done
-          fi
-
-          # Normalizar nombres
-          find _wikis -name "* *" -exec rename "s/ /-/g" {} \;
+          # Procesar todas las wikis
+          find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
+            wiki_name=$(basename "$wiki_dir")
+            
+            # Normalizar nombres
+            clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
+            
+            # Copiar y procesar archivos
+            mkdir -p "_wikis/${clean_name}"
+            find "$wiki_dir" -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
+            
+            # Inyectar front matter
+            find "_wikis/${clean_name}" -name "*.md" -exec sed -i '1s/^/---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: '"${clean_name}"'\n---\n/' {} \;
+          done
 
       - name: Build Jekyll site
         run: |
-          cd main-repo
-          bundle exec jekyll build --config _config.yml --destination ../_site
-          # Forzar tema Cayman
-          cp -R ../_wikis ../_site/wiki
+          cp -r _wikis wiki
+          bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: ./_site
 
   deploy:
     needs: build
