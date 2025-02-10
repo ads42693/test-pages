@@ -76,7 +76,7 @@ jobs:
         env:
           JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp -r _wikis wiki
+          cp -r _wikis/* wiki/
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
