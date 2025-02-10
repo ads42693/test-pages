@@ -27,20 +27,23 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq
-          pip install yq
+          sudo apt-get install -y jq snapd rename
+          sudo snap install yq
+          sudo ln -s /snap/bin/yq /usr/bin/yq
 
       - name: Load Wiki Config
         id: wiki-config
         run: |
           cd main-repo
-          echo "WIKIS=$(yq -o=json '.wikis' config/wikis.yml)" >> $GITHUB_OUTPUT
+          WIKIS_JSON=$(yq eval -o=json '.wikis' config/wikis.yml || echo "[]")
+          echo "WIKIS=${WIKIS_JSON}" >> $GITHUB_OUTPUT
 
       - name: Checkout Main Wiki
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}.wiki
           path: wikis/main
+          sparse-checkout: "*.md"  # Solo archivos Markdown
 
       - name: Checkout External Wikis
         run: |
@@ -49,54 +52,45 @@ jobs:
             name=$(echo "$wiki" | jq -r '.name')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
-            git clone "$url" "wikis/external/$name" --depth 1 || echo "⚠️ Falló clonación de $name"
+            git clone "$url" "wikis/external/$name" --depth 1 --config core.sparseCheckout=true --filter=blob:none || echo "⚠️ Falló clonación de $name"
           done
 
       - name: Setup Ruby environment
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.1"
-          bundler: "2.3.5"
+          bundler: "2.4.22"  # Versión compatible con Cayman
           bundler-cache: true
+          working-directory: main-repo
 
       - name: Process Wikis
         run: |
           mkdir -p _wikis
           
-          # Buscar solo directorios con archivos .md
-          find wikis -type d -exec test -n "$(find {} -name '*.md' -print -quit)" \; -print | while read -r wiki_dir; do
-            wiki_name=$(basename "$wiki_dir")
-            echo "📂 Procesando $wiki_name..."
-            
-            # Crear directorio destino
-            mkdir -p "_wikis/$wiki_name"
-            
-            # Copiar contenido (maneja directorios vacíos)
-            if [ -n "$(ls -A "$wiki_dir")" ]; then
-              cp -R "$wiki_dir"/* "_wikis/$wiki_name/"
-            else
-              echo "⚠️ Directorio vacío: $wiki_dir - omitiendo"
-            fi
-            
-            # Inyectar front matter solo si hay archivos
-            if [ -n "$(find "_wikis/$wiki_name" -name '*.md')" ]; then
-              find "_wikis/$wiki_name" -name "*.md" -exec sed -i "1s/^/---\nlayout: default\ntitle: \"Página Wiki\"\nwiki_source: $wiki_name\n---\n/" {} \;
-              # Normalizar nombres
-              find "_wikis/$wiki_name" -name "* *" -exec rename "s/ /-/g" {} \;
-            fi
-          done
+          # Procesar Wiki Principal
+          if [ -d "wikis/main" ]; then
+            cp -R wikis/main _wikis/main
+            find "_wikis/main" -name "*.md" -exec sed -i '1s/^/---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: main\n---\n/' {} \;
+          fi
+
+          # Procesar Wikis Externas
+          if [ -d "wikis/external" ]; then
+            find wikis/external -mindepth 1 -maxdepth 1 -type d | while read -r wiki_dir; do
+              wiki_name=$(basename "$wiki_dir")
+              cp -R "$wiki_dir" "_wikis/$wiki_name"
+              find "_wikis/$wiki_name" -name "*.md" -exec sed -i "1s/^/---\nlayout: cayman\ntitle: \"Página Wiki\"\nwiki_source: $wiki_name\n---\n/" {} \;
+            done
+          fi
+
+          # Normalizar nombres
+          find _wikis -name "* *" -exec rename "s/ /-/g" {} \;
 
       - name: Build Jekyll site
         run: |
           cd main-repo
           bundle exec jekyll build --config _config.yml --destination ../_site
-          cd ..
-
-      - name: Validate build
-        run: |
-          echo "🔍 Generated content:"
-          tree -L 3 _site/wiki
-          grep -r "wiki_source" _site/wiki
+          # Forzar tema Cayman
+          cp -R ../_wikis ../_site/wiki
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

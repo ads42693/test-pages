@@ -1,7 +1,6 @@
 source "https://rubygems.org"
 
-gem "jekyll", "3.9.3"
-
-# Bloquea la versión de GitHub Pages para evitar sorpresas
-gem "github-pages", "~> 228", group: :jekyll_plugins
-gem "webrick", "~> 1.9"
+gem "jekyll", "~> 4.3.3"
+gem "github-pages", "~> 229", group: :jekyll_plugins
+gem "jekyll-theme-cayman", "~> 0.2"  # Versión específica para compatibilidad
+gem "webrick", "~> 1.8"
