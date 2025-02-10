@@ -48,8 +48,8 @@ jobs:
           echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name')
             url=$(echo "$wiki" | jq -r '.url')
-            echo "🔄 Cloning $name from $url"
-            git clone "$url" "wikis/external/$name"
+            echo "🔄 Clonando $name desde $url"
+            git clone "$url" "wikis/external/$name" --depth 1 || echo "⚠️ Falló clonación de $name"
           done
 
       - name: Setup Ruby environment
@@ -63,20 +63,27 @@ jobs:
         run: |
           mkdir -p _wikis
           
-          # Procesar todas las wikis
-          find wikis -mindepth 1 -maxdepth 2 -type d | while read -r wiki_dir; do
+          # Buscar solo directorios con archivos .md
+          find wikis -type d -exec test -n "$(find {} -name '*.md' -print -quit)" \; -print | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
-            echo "📂 Processing $wiki_name..."
+            echo "📂 Procesando $wiki_name..."
             
-            # Copiar contenido
+            # Crear directorio destino
             mkdir -p "_wikis/$wiki_name"
-            cp -R "$wiki_dir"/* "_wikis/$wiki_name/"
             
-            # Inyectar front matter
-            find "_wikis/$wiki_name" -name "*.md" -exec sed -i "1s/^/---\nlayout: default\ntitle: \"Página Wiki\"\nwiki_source: $wiki_name\n---\n/" {} \;
+            # Copiar contenido (maneja directorios vacíos)
+            if [ -n "$(ls -A "$wiki_dir")" ]; then
+              cp -R "$wiki_dir"/* "_wikis/$wiki_name/"
+            else
+              echo "⚠️ Directorio vacío: $wiki_dir - omitiendo"
+            fi
             
-            # Normalizar nombres
-            find "_wikis/$wiki_name" -name "* *" -exec rename "s/ /-/g" {} \;
+            # Inyectar front matter solo si hay archivos
+            if [ -n "$(find "_wikis/$wiki_name" -name '*.md')" ]; then
+              find "_wikis/$wiki_name" -name "*.md" -exec sed -i "1s/^/---\nlayout: default\ntitle: \"Página Wiki\"\nwiki_source: $wiki_name\n---\n/" {} \;
+              # Normalizar nombres
+              find "_wikis/$wiki_name" -name "* *" -exec rename "s/ /-/g" {} \;
+            fi
           done
 
       - name: Build Jekyll site
