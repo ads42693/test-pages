@@ -15,19 +15,18 @@ title: "Inicio"
 
 ---
 
-## Wikis Centralizadas
+## 📚 Wikis Integradas
 
-### Documentación Principal
-{% for page in site.wikis.main %}
+### Wiki Principal
+{% assign main_pages = site.wikis | where: "wiki_source", "main" %}
+{% for page in main_pages %}
 - [{{ page.title }}]({{ page.url }})
 {% endfor %}
 
-### Proyectos Externos
-{% for wiki in site.wikis.otros %}
-#### {{ wiki[0] | replace: "-", " " | capitalize }}
-{% for page in wiki[1] %}
+### Skills Wiki
+{% assign skills_pages = site.wikis | where: "wiki_source", "skills-wiki" %}
+{% for page in skills_pages %}
 - [{{ page.title }}]({{ page.url }})
-{% endfor %}
 {% endfor %}
 
 ---

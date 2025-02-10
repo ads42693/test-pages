@@ -31,8 +31,8 @@ jobs:
       - name: Checkout Other Wikis
         run: |
           mkdir -p wikis/otros
-          # Lista de wikis externas (¡personaliza estos URLs!)
-          git clone https://github.com/ads42693/skills-github-pages.wiki.git
+          # Corregido: Especificar directorio destino para el clone
+          git clone https://github.com/ads42693/skills-github-pages.wiki.git wikis/otros/skills-wiki
 
       - name: Setup Ruby environment
         uses: ruby/setup-ruby@v1
@@ -47,14 +47,20 @@ jobs:
       - name: Sync Wiki content
         run: |
           mkdir -p _wikis
-          # Copia todas las wikis preservando estructura
-          cp -R wikis/* _wikis/
           
-          # Normaliza nombres de archivos
+          # Procesar Wiki Principal
+          cp -R wikis/main _wikis/
+          find _wikis/main -name "*.md" -exec sed -i '1s/^/---\nlayout: default\ntitle: "Página Wiki"\nwiki_source: main\n---\n/' {} \;
+
+          # Procesar Wikis Externas (corregido: usar path correcto)
+          for wiki in wikis/otros/*; do
+            dir_name=$(basename $wiki)
+            cp -R $wiki _wikis/$dir_name
+            find _wikis/$dir_name -name "*.md" -exec sed -i "1s/^/---\nlayout: default\ntitle: \"Página Wiki\"\nwiki_source: $dir_name\n---\n/" {} \;
+          done
+
+          # Normalizar nombres de archivos
           find _wikis -name "* *" -exec rename "s/ /-/g" {} \;
-          
-          # Inyecta front matter con layout del tema
-          find _wikis -name "*.md" -exec sed -i '1s/^/---\nlayout: default\n---\n/' {} \;
 
       - name: Build Jekyll site
         run: bundle exec jekyll build --config _config.yml
