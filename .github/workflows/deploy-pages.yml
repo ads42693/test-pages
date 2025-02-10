@@ -37,7 +37,7 @@ jobs:
         run: |
           cd main-repo
           WIKIS_JSON=$(yq eval -o=json '.wikis' config/wikis.yml || echo "[]")
-          echo "WIKIS=${WIKIS_JSON}" >> $GITHUB_OUTPUT
+          echo "WIKIS_JSON=${WIKIS_JSON}" >> $GITHUB_ENV
 
       - name: Checkout Main Wiki
         uses: actions/checkout@v4
@@ -49,7 +49,7 @@ jobs:
       - name: Checkout External Wikis
         run: |
           mkdir -p wikis/external
-          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+          echo "${{ env.WIKIS_JSON }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
