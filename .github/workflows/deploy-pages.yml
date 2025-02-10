@@ -1,14 +1,15 @@
-name: Deploy Jekyll with GitHub Pages
+name: Deploy Jekyll with GitHub Pages and Wiki Integration
 
 on:
   push:
-    branches: ["develop"]
+    branches: [develop]
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  pull-requests: write  # Nuevo permiso para manejar wikis
 
 concurrency:
   group: "pages"
@@ -18,8 +19,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout main repository
         uses: actions/checkout@v4
+
+      - name: Checkout Wiki repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki-content
 
       - name: Setup Ruby environment
         uses: ruby/setup-ruby@v1
@@ -30,6 +37,12 @@ jobs:
 
       - name: Install dependencies
         run: bundle install --jobs=4 --retry 3 --binstubs
+
+      - name: Sync Wiki content
+        run: |
+          mkdir -p _wiki
+          cp -R wiki-content/* _wiki/
+          find _wiki -name "*.md" -exec sed -i '1s/^/---\nlayout: default\n---\n/' {} \;
 
       - name: Build Jekyll site
         run: bundle exec jekyll build --config _config.yml

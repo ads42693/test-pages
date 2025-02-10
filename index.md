@@ -11,6 +11,14 @@ title: "Inicio"
 - [Repositorios]({{ site.baseurl }}/repositorios/)
 - [Tutoriales]({{ site.baseurl }}/tutoriales/)
 - [Blogs]({{ site.baseurl }}/blogs/)
+- [Wiki Colaborativa]({{ site.baseurl }}/wiki/)  <!-- Nuevo enlace -->
+
+---
+
+## Wiki
+{% for page in site.wiki %}
+- [{{ page.title }}]({{ page.url }})
+{% endfor %}
 
 ---
 

@@ -9,6 +9,12 @@ url: "https://ads42693.github.io"
 baseurl: "/test-pages"  # Usa variables para flexibilidad
 repository: "ads42693.github.io/test-pages"
 
+# --- Habilitar Wiki ---
+collections:
+  wiki:
+    output: true
+    permalink: /wiki/:path/
+
 # --- Tema y Plugins ---
 theme: jekyll-theme-cayman
 
