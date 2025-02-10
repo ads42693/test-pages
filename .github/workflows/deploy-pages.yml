@@ -40,7 +40,7 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+          echo '[{"name":"skills-wiki","url":"https://github.com/ads42693/skills-github-pages.wiki.git"}]' | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
@@ -73,6 +73,8 @@ jobs:
           done
 
       - name: Build Jekyll site
+        env:
+          JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cp -r _wikis wiki
           bundle exec jekyll build --config _config.yml
