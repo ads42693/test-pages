@@ -1,0 +1,41 @@
+# Archivos de configuración del entorno
+_config_dev.yml
+
+# Dependencias de Ruby
+Gemfile.lock
+
+# Archivos y directorios generados por Jekyll
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Archivos y directorios generados por Docker
+docker-compose.override.yml
+docker-compose.yml
+Dockerfile
+
+# Archivos de configuración de GitHub Actions
+.github/
+
+# Archivos de configuración de VSCode
+.vscode/
+
+# Archivos temporales y de sistema
+*.log
+*.tmp
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Archivos de configuración de entorno
+.env
+
+# Archivos y directorios generados por Bundler
+.bundle/
+vendor/bundle/
+
+# Archivos y directorios generados por Jekyll
+_site/
+.jekyll-cache/
+.jekyll-metadata
