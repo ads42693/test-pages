@@ -79,7 +79,6 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar nombre del archivo: eliminamos caracteres extraños y aseguramos que los espacios sean guiones
               normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr -d '[:cntrl:]' | sed -E 's/--/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
@@ -94,10 +93,17 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                # 🔹 Extraer nombre del archivo sin la extensión y eliminar caracteres extraños
                 base_name=$(basename "$file" .md | sed -E 's/‐/-/g' | tr '[:upper:]' '[:lower:]')
 
-                # 🔹 Detectar categoría en base al nombre del archivo
+                # 🔹 Obtener el último mensaje de commit para este archivo
+                last_commit_msg=$(git log -1 --pretty=%s -- "$file" 2>/dev/null || echo "")
+
+                # 🔹 Si no hay commit message, usar la última línea del archivo como fallback
+                if [[ -z "$last_commit_msg" ]]; then
+                  last_commit_msg=$(tail -n 1 "$file" | sed 's/"/\\"/g')
+                fi
+
+                # 🔹 Detectar categoría
                 case "$base_name" in
                   blog-*) category="blogs" ;;
                   articulo-*) category="articulos" ;;
@@ -105,16 +111,16 @@ jobs:
                   *) category="otros" ;;
                 esac
 
-                echo "📝 Asignando categoría '$category' a '$base_name'"
+                echo "📝 Asignando categoría '$category' a '$base_name' con descripción: '$last_commit_msg'"
 
-                # 📝 Generar el Front Matter con la categoría correcta
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$base_name" "$clean_name" "$category")
+                # 📝 Generar el Front Matter con la descripción extraída
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\ndescription: "%s"\n---\n\n' "$base_name" "$clean_name" "$category" "$last_commit_msg")
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
                 cat "$file" >> "$tmpfile"
                 mv "$tmpfile" "$file"
-                echo "✍️ Front matter inyectado en $file (Categoría: $category)"
+                echo "✍️ Front matter inyectado en $file (Categoría: $category, Descripción: $last_commit_msg)"
               fi
             done
           done
