@@ -14,15 +14,18 @@ collections:
   wiki:
     output: true
     permalink: /wiki/:path/
+  local-wiki:
+    output: true
+    permalink: /local-wiki/:path/
   blogs:
     output: true
-    permalink: /blogs/:path/
+    permalink: /blogs/:title/
   articulos:
     output: true
-    permalink: /articulos/:path/
+    permalink: /articulos/:title/
   tutoriales:
     output: true
-    permalink: /tutoriales/:path/
+    permalink: /tutoriales/:title/
 
 # --- Tema y Plugins ---
 theme: jekyll-theme-cayman
@@ -56,6 +59,12 @@ defaults:
     values:
       layout: cayman
       title: "Página Wiki"
+  - scope:
+      path: ""
+      type: local-wiki
+    values:
+      layout: cayman
+      title: "Wiki Local"
   - scope:
       path: ""
       type: blogs
