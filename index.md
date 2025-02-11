@@ -59,20 +59,15 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 
 Las siguientes wikis provienen de otros repositorios y se organizan de forma independiente.
 
-{% assign external_wikis = site.wiki | where_exp: "page", "page.wiki_source != 'local-wiki'" %}
+{% assign external_wikis = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki'" %}
+{% assign grouped_external_wikis = external_wikis | group_by: "wiki_source" %}
 
-{% if external_wikis.size > 0 %}
-  {% for wiki_group in external_wikis | group_by: "wiki_source" %}
-  ### 🔹 {{ wiki_group.name }}
-  <ul>
-    {% for page in wiki_group.items %}
-      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
-    {% endfor %}
-  </ul>
-  {% endfor %}
-{% else %}
-  <p>⚠️ No se encontraron wikis externas.</p>
-{% endif %}
+{% for wiki_group in grouped_external_wikis %}
+### 🔹 {{ wiki_group.name }}
+{% for page in wiki_group.items %}
+- [{{ page.title }}]({{ page.url | relative_url }})
+{% endfor %}
+{% endfor %}
 
 ---
 
