@@ -51,11 +51,12 @@ A continuación, se listan los repositorios externos disponibles.
     {% assign repos = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki'" %}
     {% for repo in repos %}
       {% assign clean_name = repo.title | remove_first: "skills-" | strip | capitalize %}
+      {% assign repo_url = repo.url | replace: ".wiki.git", "" %}  <!-- 🔹 Transformamos la URL -->
       <tr>
         <td>{{ clean_name }}</td>
         <td>
           <a class="btn btn-primary text-dark" 
-             href="{{ repo.repo_url }}" 
+             href="{{ repo_url }}" 
              target="_blank"
              style="color: #007bff; text-decoration: underline;">
             Ver en GitHub
