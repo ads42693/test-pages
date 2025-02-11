@@ -5,7 +5,7 @@ title: "Blogs"
 
 # 📖 Blogs
 
-[⬅ Volver al inicio]({{ site.baseurl }}/)
+[🏠 Volver al inicio]({{ site.baseurl }}/) | [📖 Blogs]({{ site.baseurl }}/blogs/) | [📑 Artículos]({{ site.baseurl }}/articulos/) | [🎓 Tutoriales]({{ site.baseurl }}/tutoriales/)
 
 Explora los blogs disponibles sobre nuestras herramientas y metodologías.
 

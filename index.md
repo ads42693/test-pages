@@ -34,15 +34,36 @@ Las siguientes wikis provienen de otros repositorios y se organizan de forma ind
 </ul>
 {% endfor %}
 
-
 ---
 
-## 🔥 Últimos Proyectos
+## 🔥 Últimos Proyectos (Repositorios Externos)
 
-| Proyecto | Descripción | Enlace |
-|----------|-------------|--------|
-| Proyecto A | Descripción breve del Proyecto A | [Ver más]({{ site.baseurl }}/docs/proyectos/proyecto-a/) |
-| Proyecto B | Descripción breve del Proyecto B | [Ver más]({{ site.baseurl }}/docs/proyectos/proyecto-b/) |
+A continuación, se listan los repositorios externos disponibles.
+
+<table>
+  <thead>
+    <tr>
+      <th>📂 Nombre</th>
+      <th>🔗 Enlace</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% assign repos = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki'" %}
+    {% for repo in repos %}
+      {% assign clean_name = repo.title | remove_first: "skills-" | strip | capitalize %}
+      <tr>
+        <td>{{ clean_name }}</td>
+        <td>
+          <a class="btn btn-primary text-dark" 
+             href="{{ repo.url | relative_url }}" 
+             style="color: #007bff; text-decoration: underline;">
+            Ver más
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
 ---
 

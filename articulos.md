@@ -5,7 +5,7 @@ title: "Artículos"
 
 # 📑 Artículos
 
-[⬅ Volver al inicio]({{ site.baseurl }}/)
+[🏠 Volver al inicio]({{ site.baseurl }}/) | [📖 Blogs]({{ site.baseurl }}/blogs/) | [📑 Artículos]({{ site.baseurl }}/articulos/) | [🎓 Tutoriales]({{ site.baseurl }}/tutoriales/)
 
 Explora los artículos publicados sobre metodologías y mejores prácticas.
 
