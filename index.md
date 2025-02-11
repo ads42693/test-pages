@@ -55,9 +55,10 @@ A continuación, se listan los repositorios externos disponibles.
         <td>{{ clean_name }}</td>
         <td>
           <a class="btn btn-primary text-dark" 
-             href="{{ repo.url | relative_url }}" 
+             href="{{ repo.repo_url }}" 
+             target="_blank"
              style="color: #007bff; text-decoration: underline;">
-            Ver más
+            Ver en GitHub
           </a>
         </td>
       </tr>
