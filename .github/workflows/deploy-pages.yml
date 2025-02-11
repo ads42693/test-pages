@@ -24,7 +24,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq tree
 
       - name: Load Wiki Config
         id: wiki-config
@@ -34,27 +35,24 @@ jobs:
             echo "❌ Error: config/wikis.yml no existe"
             exit 1
           fi
-          
+
           # Genera el JSON y maneja errores
-          WIKIS_JSON=$(ruby -ryaml -rjson -e "
-            begin
-              config = YAML.load_file('config/wikis.yml')
-              wikis = config['wikis'] || []
-              puts JSON.generate(wikis)
-            rescue => e
-              puts '[]'
-              STDERR.puts '⚠️ Error cargando YAML: #{e.message}'
-            end")
+          WIKIS_JSON=$(ruby -ryaml -rjson -e "begin; wikis = YAML.load_file('config/wikis.yml')['wikis']; wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }; puts JSON.generate(wikis); rescue => e; STDERR.puts '⚠️ Error cargando YAML: ' + e.message; puts '[]'; end")
           
-          echo "WIKIS_JSON=$WIKIS_JSON" >> $GITHUB_ENV
+          # Guarda el JSON en un archivo para preservar el formato
+          echo "$WIKIS_JSON" > wikis.json
+          echo "Contenido de WIKIS: $(cat wikis.json)"
+          
+          # También lo guarda en la salida de GitHub Actions (opcional)
           echo "WIKIS<<EOF" >> $GITHUB_OUTPUT
-          echo "$WIKIS_JSON" >> $GITHUB_OUTPUT
+          cat wikis.json >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          printf '%s' "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+          # Lee el JSON desde el archivo generado para evitar problemas de formato
+          cat wikis.json | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
@@ -63,8 +61,8 @@ jobs:
               exit 1
             fi
           done
-          echo "Directorios en wikis:"
-          ls -la wikis/
+          echo "Listado de directorios en wikis:"
+          ls -la wikis
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -75,24 +73,24 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
-          echo "Procesando wikis..."
+          echo "Listado de archivos en wikis/ antes de procesar:"
+          ls -R wikis/
           
+          # Procesa cada directorio en wikis (excluyendo la carpeta misma)
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
+            # Normalizar el nombre: convertir espacios a guiones y a minúsculas
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
             mkdir -p "_wikis/${clean_name}"
             
-            echo "Copiando .md de $wiki_dir a _wikis/${clean_name}"
-            find "$wiki_dir" -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
+            echo "Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
+            # Ajusta -maxdepth si los archivos .md están en subdirectorios
+            find "$wiki_dir" -maxdepth 2 -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
             
-            # Verifica si hay archivos copiados
-            if [ -z "$(ls -A "_wikis/${clean_name}")" ]; then
-              echo "⚠️ No se copiaron archivos .md en $wiki_dir"
-            else
-              echo "✅ Archivos en _wikis/${clean_name}:"
-              ls "_wikis/${clean_name}"
-            fi
+            echo "Archivos copiados en _wikis/${clean_name}:"
+            ls -R "_wikis/${clean_name}"
             
+            # Procesar cada archivo .md para inyectar front matter
             for file in _wikis/"${clean_name}"/*.md; do
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "El archivo $file ya tiene front matter, se omite inyección."
@@ -115,16 +113,12 @@ jobs:
         env:
           JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Crear directorio _wiki si no existe
           mkdir -p _wiki
-          
-          # Copiar solo si hay archivos en _wikis
           if [ -n "$(ls -A _wikis/)" ]; then
             cp -r _wikis/* _wiki/
           else
             echo "⚠️ _wikis está vacío. No se copian archivos."
           fi
-          
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
@@ -139,7 +133,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
