@@ -19,21 +19,21 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 
 - **📖 Blogs**
   {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories == "blogs" %}
+    {% if page.wiki_source == "local-wiki" and page.categories contains "blogs" %}
       - [{{ page.title }}]({{ page.url | relative_url }})
     {% endif %}
   {% endfor %}
 
 - **📑 Artículos**
   {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories == "articulos" %}
+    {% if page.wiki_source == "local-wiki" and page.categories contains "articulos" %}
       - [{{ page.title }}]({{ page.url | relative_url }})
     {% endif %}
   {% endfor %}
 
 - **🎓 Tutoriales**
   {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories == "tutoriales" %}
+    {% if page.wiki_source == "local-wiki" and page.categories contains "tutoriales" %}
       - [{{ page.title }}]({{ page.url | relative_url }})
     {% endif %}
   {% endfor %}
