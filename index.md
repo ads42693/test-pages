@@ -18,7 +18,8 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 ### 📌 Contenido del Repositorio Local
 
 - **📖 Blogs**
-  {% assign blogs = site.wiki | where: "wiki_source", "local-wiki" | where_exp: "item", "item.categories and item.categories contains 'blogs'" %}
+  {% assign blogs = site.wiki | where: "wiki_source", "local-wiki" %}
+  {% assign blogs = blogs | where: "categories", "blogs" %}
   {% if blogs.size > 0 %}
     <ul>
     {% for page in blogs %}
@@ -30,7 +31,8 @@ title: "Bienvenido a la Documentación de Transformación Digital"
   {% endif %}
 
 - **📑 Artículos**
-  {% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where_exp: "item", "item.categories and item.categories contains 'articulos'" %}
+  {% assign articulos = site.wiki | where: "wiki_source", "local-wiki" %}
+  {% assign articulos = articulos | where: "categories", "articulos" %}
   {% if articulos.size > 0 %}
     <ul>
     {% for page in articulos %}
@@ -42,7 +44,8 @@ title: "Bienvenido a la Documentación de Transformación Digital"
   {% endif %}
 
 - **🎓 Tutoriales**
-  {% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where_exp: "item", "item.categories and item.categories contains 'tutoriales'" %}
+  {% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" %}
+  {% assign tutoriales = tutoriales | where: "categories", "tutoriales" %}
   {% if tutoriales.size > 0 %}
     <ul>
     {% for page in tutoriales %}
@@ -59,7 +62,7 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 
 Las siguientes wikis provienen de otros repositorios y se organizan de forma independiente.
 
-{% assign external_wikis = site.wiki | where_exp: "wiki", "wiki.wiki_source and wiki.wiki_source != 'local-wiki'" %}
+{% assign external_wikis = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki'" %}
 {% assign grouped_external_wikis = external_wikis | group_by: "wiki_source" %}
 
 {% if grouped_external_wikis.size > 0 %}
