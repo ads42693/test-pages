@@ -72,7 +72,6 @@ jobs:
             find "_wikis/${clean_name}" -name "*.md" -exec sh -c '
               file="$1"
               wiki_source="$2"
-              # Usamos printf para asegurarnos de interpretar \n
               printf "---\nlayout: cayman\ntitle: \"Página Wiki\"\nwiki_source: \"%s\"\n---\n" "$wiki_source" | cat - "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
             ' _ {} "$clean_name" \;
           done
