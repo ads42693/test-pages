@@ -3,61 +3,18 @@ layout: default
 title: "Bienvenido a la Documentación de Transformación Digital"
 ---
 
-📚 **Secciones**:  
-- [📑 Guías Rápidas]({{ site.baseurl }}/guias/inicio-rapido/)  
-- [🚀 Proyectos]({{ site.baseurl }}/docs/proyectos/proyecto-a/)
-- [📂 Repositorios]({{ site.baseurl }}/repositorios/)
-- [📘 Tutoriales]({{ site.baseurl }}/tutoriales/)
-- [📝 Blogs]({{ site.baseurl }}/blogs/)
-- [📖 Wiki Colaborativa]({{ site.baseurl }}/wiki/)
-
----
-
 ## 📚 Wikis Integradas
 
 ### 📌 Contenido del Repositorio Local
 
-{% assign blogs = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "blogs" %}
-{% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "articulos" %}
-{% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "tutoriales" %}
+📖 **Blogs**  
+[Explora todos los blogs aquí]({{ site.baseurl }}/blogs/)
 
-<ul>
-  <li><strong>📖 Blogs</strong>
-    {% if blogs.size > 0 %}
-      <ul>
-        {% for page in blogs %}
-          <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>⚠️ No hay blogs disponibles.</p>
-    {% endif %}
-  </li>
+📑 **Artículos**  
+[Explora todos los artículos aquí]({{ site.baseurl }}/articulos/)
 
-  <li><strong>📑 Artículos</strong>
-    {% if articulos.size > 0 %}
-      <ul>
-        {% for page in articulos %}
-          <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>⚠️ No hay artículos disponibles.</p>
-    {% endif %}
-  </li>
-
-  <li><strong>🎓 Tutoriales</strong>
-    {% if tutoriales.size > 0 %}
-      <ul>
-        {% for page in tutoriales %}
-          <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p>⚠️ No hay tutoriales disponibles.</p>
-    {% endif %}
-  </li>
-</ul>
+🎓 **Tutoriales**  
+[Explora todos los tutoriales aquí]({{ site.baseurl }}/tutoriales/)
 
 ---
 
@@ -69,22 +26,19 @@ Las siguientes wikis provienen de otros repositorios y se organizan de forma ind
 {% assign grouped_external_wikis = external_wikis | group_by: "wiki_source" %}
 
 {% if grouped_external_wikis.size > 0 %}
-  {% for wiki_group in grouped_external_wikis %}
-  ### 🔹 {{ wiki_group.name }}
-  {% if wiki_group.items.size > 0 %}
-    <ul>
-    {% for page in wiki_group.items %}
-      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
+  <div class="external-wikis">
+    {% for wiki_group in grouped_external_wikis %}
+      <h3>🔹 {{ wiki_group.name | capitalize }}</h3>
+      <ul class="wiki-list">
+        {% for page in wiki_group.items %}
+          <li>📄 <a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
+        {% endfor %}
+      </ul>
     {% endfor %}
-    </ul>
-  {% else %}
-    <p>⚠️ No hay páginas disponibles en esta wiki.</p>
-  {% endif %}
-  {% endfor %}
+  </div>
 {% else %}
   <p>⚠️ No hay wikis externas disponibles.</p>
 {% endif %}
-
 
 ---
 

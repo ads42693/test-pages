@@ -79,9 +79,7 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar el nombre del archivo correctamente
-              normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
-              normalized_name=$(echo "$normalized_name" | sed -E 's/--+/-/g')
+              normalized_name=$(basename "$file" | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
               echo "🔄 Renombrando y copiando: $file → $new_path"
@@ -95,25 +93,25 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                # 🔹 Extraer título limpio eliminando prefijos
-                page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed -E 's/--+/-/g' | tr -s '-' ' ')
+                page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed 's/--/-/g' | tr -s '-' ' ')
 
-                # 🔹 Categorizar correctamente
-                category="otros"
-                [[ "$file" =~ "Blog-" ]] && category="blogs"
-                [[ "$file" =~ "Articulo-" ]] && category="articulos"
-                [[ "$file" =~ "Tutorial-" ]] && category="tutoriales"
-
-                # 📝 Inyectar breadcrumbs y eliminar botón GitHub
-                breadcrumb="<nav><a href='{{ site.baseurl }}/'>Inicio</a> > <a href='{{ site.baseurl }}/${category}/'>${category^}</a> > ${page_title}</nav>"
-
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\nhide_github_button: true\n---\n\n%s\n\n' "$page_title" "$clean_name" "$category" "$breadcrumb")
+                if [[ "$clean_name" == "local-wiki" ]]; then
+                  case "$page_title" in
+                    Blog-*) category="blogs" ;;
+                    Articulo-*) category="articulos" ;;
+                    Tutorial-*) category="tutoriales" ;;
+                    *) category="otros" ;;
+                  esac
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
+                else
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\n---\n\n' "$page_title" "$clean_name")
+                fi
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
                 cat "$file" >> "$tmpfile"
                 mv "$tmpfile" "$file"
-                echo "✍️ Front matter inyectado en $file (Categoría: ${category})"
+                echo "✍️ Front matter inyectado en $file (Categoría: ${category:-'N/A'})"
               fi
             done
           done

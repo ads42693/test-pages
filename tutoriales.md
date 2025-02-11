@@ -3,17 +3,13 @@ layout: default
 title: "Tutoriales"
 ---
 
-# Tutoriales
+# 🎓 Tutoriales
 
 Encuentra tutoriales detallados sobre nuestras herramientas y procesos.
 
 | Tutorial | Descripción | Enlace |
 |----------|-------------|--------|
-| Tutorial 1 | Descripción breve del Tutorial 1 | [Ver más]({{ site.baseurl }}/tutoriales/tutorial-1/) |
-| Tutorial 2 | Descripción breve del Tutorial 2 | [Ver más]({{ site.baseurl }}/tutoriales/tutorial-2/) |
-
----
-
-## Ejemplo de Tutorial
-
-![Ejemplo de Tutorial](https://via.placeholder.com/800x400)
+{% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "tutoriales" %}
+{% for tutorial in tutoriales %}
+| {{ tutorial.title }} | Tutorial sobre {{ tutorial.title }} | [Ver más]({{ tutorial.url | relative_url }}) |
+{% endfor %}

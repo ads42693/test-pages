@@ -3,17 +3,13 @@ layout: default
 title: "Blogs"
 ---
 
-# Blogs
+# 📝 Blogs
 
-Lee nuestros últimos blogs sobre desarrollo de software e innovación.
+Explora los blogs disponibles sobre nuestras herramientas y metodologías.
 
 | Blog | Descripción | Enlace |
 |------|-------------|--------|
-| Blog 1 | Descripción breve del Blog 1 | [Leer más]({{ site.baseurl }}/blogs/blog-1/) |
-| Blog 2 | Descripción breve del Blog 2 | [Leer más]({{ site.baseurl }}/blogs/blog-2/) |
-
----
-
-## Ejemplo de Blog
-
-![Ejemplo de Blog](https://via.placeholder.com/800x400)
+{% assign blogs = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "blogs" %}
+{% for blog in blogs %}
+| {{ blog.title }} | Blog sobre {{ blog.title }} | [Ver más]({{ blog.url | relative_url }}) |
+{% endfor %}
