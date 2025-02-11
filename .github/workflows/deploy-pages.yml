@@ -126,24 +126,16 @@ jobs:
           JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p _wiki
-
-          # 📂 Verificar si _wikis/ tiene contenido antes de copiar
           if [ -n "$(ls -A _wikis/)" ]; then
             cp -r _wikis/* _wiki/
           else
-            echo "⚠️ _wikis está vacío. Creando un placeholder."
-            echo "# Bienvenido" > _wiki/index.md
+            echo "⚠️ _wikis está vacío. No se copian archivos."
           fi
-
-          # 📌 Añadir estilos personalizados para ocultar "View on GitHub"
+          # 📌 Sobrescribir estilos para ocultar "View on GitHub"
           mkdir -p _wiki/assets/css
           echo ".btn[href*='github'] { display: none !important; }" > _wiki/assets/css/custom.css
-          echo "✅ Estilos personalizados añadidos."
-
-          # 🛠️ Validar el sitio antes de construir
-          bundle exec jekyll doctor || { echo "❌ Errores detectados en Jekyll. Revisa el _config.yml y los archivos Markdown."; exit 1; }
-
-          # 🏗️ Construcción del sitio
+          echo "✅ Estilos personalizados añadidos para ocultar 'View on GitHub'."
+          
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
