@@ -96,10 +96,10 @@ jobs:
                 page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed 's/--/-/g' | tr -s '-' ' ')
 
                 if [[ "$clean_name" == "local-wiki" ]]; then
-                  case "$page_title" in
-                    Blog-*) category="blogs" ;;
-                    Articulo-*) category="articulos" ;;
-                    Tutorial-*) category="tutoriales" ;;
+                  case "$file" in
+                    *_Blog-*|*blog-*) category="blogs" ;;
+                    *_Articulo-*|*articulo-*) category="articulos" ;;
+                    *_Tutorial-*|*tutorial-*) category="tutoriales" ;;
                     *) category="otros" ;;
                   esac
                   frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
@@ -129,10 +129,10 @@ jobs:
           else
             echo "⚠️ _wikis está vacío. No se copian archivos."
           fi
-          # 📌 Sobrescribir estilos para ocultar "View on GitHub"
+          # 📌 Aplicar estilos personalizados correctamente
           mkdir -p _wiki/assets/css
-          echo ".btn[href*='github'] { display: none !important; }" > _wiki/assets/css/custom.css
-          echo "✅ Estilos personalizados añadidos para ocultar 'View on GitHub'."
+          echo -e "@media (min-width: 0px) { .btn[href*='github'] { display: none !important; }}" > _wiki/assets/css/custom.css
+          echo "✅ Estilos personalizados añadidos correctamente."
           
           bundle exec jekyll build --config _config.yml
 

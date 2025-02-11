@@ -5,11 +5,11 @@ title: "Tutoriales"
 
 # 🎓 Tutoriales
 
-Encuentra tutoriales detallados sobre nuestras herramientas y procesos.
+Explora los tutoriales detallados disponibles.
 
 | Tutorial | Descripción | Enlace |
 |----------|-------------|--------|
-{% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "tutoriales" %}
-{% for tutorial in tutoriales %}
-| {{ tutorial.title }} | Tutorial sobre {{ tutorial.title }} | [Ver más]({{ tutorial.url | relative_url }}) |
+{% assign tutoriales = site.wiki | where: "categories", "tutoriales" %}
+{% for page in tutoriales %}
+| {{ page.title }} | Guía paso a paso sobre herramientas y procesos | [Ver más]({{ page.url | relative_url }}) |
 {% endfor %}

@@ -5,11 +5,11 @@ title: "Artículos"
 
 # 📑 Artículos
 
-Encuentra artículos detallados sobre nuestras prácticas y tecnología.
+Explora los artículos publicados sobre metodologías y mejores prácticas.
 
 | Artículo | Descripción | Enlace |
 |----------|-------------|--------|
-{% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "articulos" %}
-{% for articulo in articulos %}
-| {{ articulo.title }} | Artículo sobre {{ articulo.title }} | [Ver más]({{ articulo.url | relative_url }}) |
+{% assign articulos = site.wiki | where: "categories", "articulos" %}
+{% for page in articulos %}
+| {{ page.title }} | Artículo técnico relevante | [Ver más]({{ page.url | relative_url }}) |
 {% endfor %}

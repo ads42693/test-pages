@@ -3,18 +3,18 @@ layout: default
 title: "Bienvenido a la Documentación de Transformación Digital"
 ---
 
-## 📚 Wikis Integradas
+## 📚 Secciones
 
 ### 📌 Contenido del Repositorio Local
 
-📖 **Blogs**  
-[Explora todos los blogs aquí]({{ site.baseurl }}/blogs/)
+- **📖 Blogs**  
+  📂 [Explora todos los blogs aquí]({{ site.baseurl }}/blogs/)
 
-📑 **Artículos**  
-[Explora todos los artículos aquí]({{ site.baseurl }}/articulos/)
+- **📑 Artículos**  
+  📂 [Explora todos los artículos aquí]({{ site.baseurl }}/articulos/)
 
-🎓 **Tutoriales**  
-[Explora todos los tutoriales aquí]({{ site.baseurl }}/tutoriales/)
+- **🎓 Tutoriales**  
+  📂 [Explora todos los tutoriales aquí]({{ site.baseurl }}/tutoriales/)
 
 ---
 
@@ -25,20 +25,15 @@ Las siguientes wikis provienen de otros repositorios y se organizan de forma ind
 {% assign external_wikis = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki'" %}
 {% assign grouped_external_wikis = external_wikis | group_by: "wiki_source" %}
 
-{% if grouped_external_wikis.size > 0 %}
-  <div class="external-wikis">
-    {% for wiki_group in grouped_external_wikis %}
-      <h3>🔹 {{ wiki_group.name | capitalize }}</h3>
-      <ul class="wiki-list">
-        {% for page in wiki_group.items %}
-          <li>📄 <a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
-        {% endfor %}
-      </ul>
-    {% endfor %}
-  </div>
-{% else %}
-  <p>⚠️ No hay wikis externas disponibles.</p>
-{% endif %}
+{% for wiki_group in grouped_external_wikis %}
+### 🔹 {{ wiki_group.name }}
+<ul>
+  {% for page in wiki_group.items %}
+  <li><a href="{{ page.url | relative_url }}">{{ page.title }}</a></li>
+  {% endfor %}
+</ul>
+{% endfor %}
+
 
 ---
 
