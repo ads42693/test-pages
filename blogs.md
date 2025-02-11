@@ -21,7 +21,7 @@ Explora los blogs disponibles sobre nuestras herramientas y metodologías.
   </thead>
   <tbody>
     {% for page in blogs %}
-      {% assign clean_name = page.title | regex_replace: "^(?i:(blog|articulo|tutorial))-", "" | strip %}
+      {% assign clean_name = page.title | downcase | regex_replace: "^(blog|articulo|tutorial)-", "" | strip | capitalize %}
       <tr>
         <td>{{ clean_name }}</td>
         <td>Blog relacionado con nuestras herramientas</td>
