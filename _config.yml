@@ -26,6 +26,8 @@ collections:
 
 # --- Tema y Plugins ---
 theme: jekyll-theme-cayman
+github:
+  is_project_page: false
 plugins:
   - jekyll-theme-cayman
   - jekyll-paginate
