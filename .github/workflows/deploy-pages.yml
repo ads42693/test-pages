@@ -29,20 +29,20 @@ jobs:
       - name: Load Wiki Config
         id: wiki-config
         run: |
-          WIKIS_JSON=$(ruby -ryaml -rjson -e "begin; wikis = YAML.load_file('config/wikis.yml')['wikis']; wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }; puts JSON.generate(wikis); rescue; puts [].to_json; end")
+          WIKIS_JSON=$(ruby -ryaml -rjson -e "begin; wikis = YAML.load_file('config/wikis.yml')['wikis']; wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }; puts JSON.generate(wikis); rescue; puts '[]'; end")
           echo "WIKIS=${WIKIS_JSON}" >> $GITHUB_OUTPUT
+          echo "Contenido de WIKIS: ${WIKIS_JSON}"
 
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          echo "Contenido de WIKIS: ${{ steps.wiki-config.outputs.WIKIS }}"
           echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
             git clone "$url" "wikis/${name}" --depth 1 --single-branch --quiet || true
           done
-          echo "Listado de directorios en wikis/:" 
+          echo "Listado de directorios en wikis:"
           ls -la wikis
 
       - name: Setup Ruby
@@ -60,20 +60,15 @@ jobs:
           # Procesar todas las wikis: recorre cada directorio dentro de "wikis" (excepto el propio "wikis")
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
-            
-            # Normalizar nombres: convertir espacios a guiones y pasar a minúsculas
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
-            
-            # Crear directorio de destino para la wiki
             mkdir -p "_wikis/${clean_name}"
             
-            # Copiar todos los archivos Markdown a la carpeta correspondiente (buscando hasta 2 niveles de profundidad)
+            # Copiar archivos Markdown (ajusta -maxdepth si es necesario)
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
             
             echo "Archivos copiados en _wikis/${clean_name}:"
             ls -R "_wikis/${clean_name}"
             
-            # Recorrer cada archivo Markdown para inyectar el front matter
             for file in _wikis/"${clean_name}"/*.md; do
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "El archivo $file ya tiene front matter, se omite inyección."
@@ -91,7 +86,6 @@ jobs:
           
           echo "Listado final de archivos en _wikis/:"
           ls -R _wikis/
-
 
       - name: Build Jekyll site
         env:
