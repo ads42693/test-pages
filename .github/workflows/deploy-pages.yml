@@ -26,20 +26,16 @@ jobs:
       - name: Load Wiki Config
         id: wiki-config
         run: |
-          # Verifica si el archivo existe
           if [ ! -f "config/wikis.yml" ]; then
             echo "❌ Error: config/wikis.yml no existe"
             exit 1
           fi
 
-          # Genera el JSON y maneja errores
           WIKIS_JSON=$(ruby -ryaml -rjson -e "begin; wikis = YAML.load_file('config/wikis.yml')['wikis']; wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }; puts JSON.generate(wikis); rescue => e; STDERR.puts '⚠️ Error cargando YAML: ' + e.message; puts '[]'; end")
           
-          # Guarda el JSON en un archivo para preservar el formato
           echo "$WIKIS_JSON" > wikis.json
           echo "Contenido de WIKIS: $(cat wikis.json)"
           
-          # También lo guarda en la salida de GitHub Actions (opcional)
           echo "WIKIS<<EOF" >> $GITHUB_OUTPUT
           cat wikis.json >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -47,7 +43,6 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          # Lee el JSON desde el archivo generado para evitar problemas de formato
           cat wikis.json | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
@@ -69,18 +64,6 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
-          mkdir -p _wiki/assets/css
-
-          # Definir y aplicar estilos CSS para ocultar el botón "View on GitHub"
-          cat <<EOF > _wiki/assets/css/custom.css
-          /* Ocultar botón View on GitHub en GitHub Pages */
-          body a[href*="github.com"][aria-label*="View the project on GitHub"] {
-              display: none !important;
-              visibility: hidden !important;
-          }
-          EOF
-          echo "✅ Estilos personalizados añadidos correctamente."
-
           echo "📂 Listado de archivos en wikis/ antes de procesar:"
           ls -R wikis/ || echo "⚠️ No hay archivos en wikis"
 
@@ -115,18 +98,17 @@ jobs:
 
                   echo "📝 Asignando categoría '$category' a '$base_name' con título '$clean_title'"
 
-                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\ncustom_css: "/assets/css/custom.css"\n---\n\n' "$clean_title" "$clean_name" "$category")
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$clean_title" "$clean_name" "$category")
 
                   navigation=$(printf -- '[🏠 Volver al inicio](%s/) | [📖 Blogs](%s/blogs/) | [📑 Artículos](%s/articulos/) | [🎓 Tutoriales](%s/tutoriales/)\n\n---\n' \
                       "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}")
 
                   tmpfile="${file}.tmp"
                   echo "$frontmatter" > "$tmpfile"
-                  echo '<link rel="stylesheet" type="text/css" href="/assets/css/custom.css">' >> "$tmpfile"
                   echo "$navigation" >> "$tmpfile"
                   cat "$file" >> "$tmpfile"
                   mv "$tmpfile" "$file"
-                  echo "✍️ Front matter inyectado en $file (Categoría: $category) con navegación y CSS."
+                  echo "✍️ Front matter inyectado en $file (Categoría: $category) con navegación."
                 fi
               fi
             done
@@ -145,16 +127,6 @@ jobs:
           else
             echo "⚠️ _wikis está vacío. No se copian archivos."
           fi
-          # 📌 Aplicar estilos personalizados correctamente
-          mkdir -p _wiki/assets/css
-          cat <<EOF > _wiki/assets/css/custom.css
-          /* Ocultar botón View on GitHub en GitHub Pages */
-          body a[href*="github.com"][aria-label*="View the project on GitHub"] {
-              display: none !important;
-              visibility: hidden !important;
-          }
-          EOF
-          echo "✅ Estilos personalizados añadidos correctamente."
 
           bundle exec jekyll build --config _config.yml
 
