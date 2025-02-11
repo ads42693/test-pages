@@ -40,7 +40,7 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          echo '[{"name":"skills-wiki","url":"https://github.com/ads42693/skills-github-pages.wiki.git"}]' | jq -c '.[]' | while read -r wiki; do
+          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
@@ -68,7 +68,7 @@ jobs:
             mkdir -p "_wikis/${clean_name}"
             
             # Copiar todos los archivos Markdown a la carpeta correspondiente
-            find "$wiki_dir" -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
+            find "$wiki_dir" -name "*.md"ss -exec cp {} "_wikis/${clean_name}/" \;
 
             # Recorrer cada archivo Markdown para inyectar el front matter
             for file in _wikis/"${clean_name}"/*.md; do
