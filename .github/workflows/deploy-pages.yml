@@ -70,7 +70,7 @@ jobs:
         run: |
           mkdir -p _wikis
           echo "📂 Listado de archivos en wikis/ antes de procesar:"
-          ls -R wikis/
+          ls -R wikis/ || echo "⚠️ No hay archivos en wikis"
 
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
@@ -79,48 +79,49 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar nombre del archivo: eliminamos caracteres extraños y aseguramos que los espacios sean guiones
               normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr -d '[:cntrl:]' | sed -E 's/--/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
-
               echo "🔄 Renombrando y copiando: $file → $new_path"
               cp "$file" "$new_path"
             done
 
-            echo "📂 Archivos copiados en _wikis/${clean_name}:"
-            ls -R "_wikis/${clean_name}"
-
             for file in _wikis/"${clean_name}"/*.md; do
-              if head -n 1 "$file" | grep -q "^---"; then
-                echo "✅ El archivo $file ya tiene front matter, se omite inyección."
-              else
-                # 🔹 Extraer nombre del archivo sin la extensión y eliminar caracteres extraños
-                base_name=$(basename "$file" .md | sed -E 's/‐/-/g' | tr '[:upper:]' '[:lower:]')
+              if [ -f "$file" ]; then
+                if head -n 1 "$file" | grep -q "^---"; then
+                  echo "✅ El archivo $file ya tiene front matter, se omite inyección."
+                else
+                  base_name=$(basename "$file" .md | sed -E 's/‐/-/g' | tr '[:upper:]' '[:lower:]')
 
-                # 🔹 Detectar categoría en base al nombre del archivo
-                case "$base_name" in
-                  blog-*) category="blogs" ;;
-                  articulo-*) category="articulos" ;;
-                  tutorial-*) category="tutoriales" ;;
-                  *) category="otros" ;;
-                esac
+                  case "$base_name" in
+                    blog-*) category="blogs"; clean_title="${base_name#blog-}" ;;
+                    articulo-*) category="articulos"; clean_title="${base_name#articulo-}" ;;
+                    tutorial-*) category="tutoriales"; clean_title="${base_name#tutorial-}" ;;
+                    *) category="otros"; clean_title="$base_name" ;;
+                  esac
 
-                echo "📝 Asignando categoría '$category' a '$base_name'"
+                  clean_title="$(echo "${clean_title:0:1}" | tr '[:lower:]' '[:upper:]')${clean_title:1}"
 
-                # 📝 Generar el Front Matter con la categoría correcta
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$base_name" "$clean_name" "$category")
+                  echo "📝 Asignando categoría '$category' a '$base_name' con título '$clean_title'"
 
-                tmpfile="${file}.tmp"
-                echo "$frontmatter" > "$tmpfile"
-                cat "$file" >> "$tmpfile"
-                mv "$tmpfile" "$file"
-                echo "✍️ Front matter inyectado en $file (Categoría: $category)"
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$clean_title" "$clean_name" "$category")
+
+                  navigation=$(printf -- '**[🏠 Volver al inicio](%s/) | [📖 Blogs](%s/blogs/) | [📑 Artículos](%s/articulos/) | [🎓 Tutoriales](%s/tutoriales/)**\n\n---\n' \
+                      "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}")
+
+                  tmpfile="${file}.tmp"
+                  echo "$frontmatter" > "$tmpfile"
+                  echo "$navigation" >> "$tmpfile"
+                  cat "$file" >> "$tmpfile"
+                  mv "$tmpfile" "$file"
+                  echo "✍️ Front matter inyectado en $file (Categoría: $category) con navegación."
+                fi
               fi
             done
           done
 
           echo "📂 Estructura final de _wikis:"
-          tree _wikis/
+          tree _wikis/ || echo "⚠️ No se generó _wikis/"
+
 
       - name: Build Jekyll site
         env:
