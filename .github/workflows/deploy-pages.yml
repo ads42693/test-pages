@@ -93,18 +93,15 @@ jobs:
               else
                 page_title=$(basename "$file" .md)
 
-                # Detectar categoría en base al nombre del archivo
-                if [[ "$page_title" =~ ^Blog- ]]; then
-                  category="blogs"
-                elif [[ "$page_title" =~ ^Articulo- ]]; then
-                  category="articulos"
-                elif [[ "$page_title" =~ ^Tutorial- ]]; then
-                  category="tutoriales"
-                else
-                  category="otros"
-                fi
+                # 🔹 Detectar categoría en base al nombre del archivo
+                case "$page_title" in
+                  Blog-*) category="blogs" ;;
+                  Articulo-*) category="articulos" ;;
+                  Tutorial-*) category="tutoriales" ;;
+                  *) category="otros" ;;
+                esac
 
-                #frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: "%s"\n---\n\n' "$page_title" "$clean_name" "$category")
+                # 📝 Inyectar Front Matter en formato de lista YAML
                 frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
 
                 tmpfile="${file}.tmp"
