@@ -31,7 +31,10 @@ jobs:
         run: |
           WIKIS_JSON=$(ruby -r yaml -r json -e '
             begin
-              puts JSON.generate(YAML.load_file("config/wikis.yml")["wikis"])
+              wikis = YAML.load_file("config/wikis.yml")["wikis"]
+              # Asegurarse de que las claves sean cadenas
+              wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }
+              puts JSON.generate(wikis)
             rescue
               puts [].to_json
             end
