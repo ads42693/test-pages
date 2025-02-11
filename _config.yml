@@ -9,11 +9,23 @@ url: "https://ads42693.github.io"
 baseurl: "/test-pages"  # Usa variables para flexibilidad
 repository: "ads42693.github.io/test-pages"
 
-# --- Habilitar Wiki ---
+# --- Habilitar Wiki y Categorías ---
 collections:
   wiki:
     output: true
     permalink: /wiki/:path/
+
+# 🔹 Habilitar soporte para categorías dinámicas en las wikis locales
+collections:
+  blogs:
+    output: true
+    permalink: /blogs/:path/
+  articulos:
+    output: true
+    permalink: /articulos/:path/
+  tutoriales:
+    output: true
+    permalink: /tutoriales/:path/
 
 # --- Tema y Plugins ---
 theme: jekyll-theme-cayman
@@ -39,7 +51,7 @@ exclude:
   - README.md
   - vendor
 
-# --- Configuración de la colección de wikis ---
+# 🔹 Configuración de categorías dentro de la colección wiki
 defaults:
   - scope:
       path: ""
@@ -47,3 +59,21 @@ defaults:
     values:
       layout: cayman
       title: "Página Wiki"
+  - scope:
+      path: ""
+      type: blogs
+    values:
+      layout: cayman
+      category: "blogs"
+  - scope:
+      path: ""
+      type: articulos
+    values:
+      layout: cayman
+      category: "articulos"
+  - scope:
+      path: ""
+      type: tutoriales
+    values:
+      layout: cayman
+      category: "tutoriales"

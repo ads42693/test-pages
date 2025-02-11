@@ -73,40 +73,56 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
-          echo "Listado de archivos en wikis/ antes de procesar:"
+          echo "📂 Listado de archivos en wikis/ antes de procesar:"
           ls -R wikis/
           
           # Procesa cada directorio en wikis (excluyendo la carpeta misma)
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
-            # Normalizar el nombre: convertir espacios a guiones y a minúsculas
+            # Normalizar nombres: convertir espacios a guiones y minúsculas
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
             mkdir -p "_wikis/${clean_name}"
             
-            echo "Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
-            # Ajusta -maxdepth si los archivos .md están en subdirectorios
+            echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
-            
-            echo "Archivos copiados en _wikis/${clean_name}:"
+
+            echo "📂 Archivos copiados en _wikis/${clean_name}:"
             ls -R "_wikis/${clean_name}"
-            
+
             # Procesar cada archivo .md para inyectar front matter
             for file in _wikis/"${clean_name}"/*.md; do
               if head -n 1 "$file" | grep -q "^---"; then
-                echo "El archivo $file ya tiene front matter, se omite inyección."
+                echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
                 page_title=$(basename "$file" .md)
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\nwiki_name: "%s"\n---\n\n' "$page_title" "$clean_name" "$page_title")
+
+                # 🔹 Identificar si es local o externo
+                if [[ "$clean_name" == "local-wiki" ]]; then
+                  # 📌 Identificar categoría basada en la ruta del archivo
+                  case "$file" in
+                    *blogs/*) category="blogs" ;;
+                    *articulos/*) category="articulos" ;;
+                    *tutoriales/*) category="tutoriales" ;;
+                    *) category="otros" ;;  # Si no coincide con ninguna, se agrupa en "otros"
+                  esac
+
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: "%s"\n---\n\n' "$page_title" "$clean_name" "$category")
+                
+                else
+                  # 🔹 Wikis externas solo necesitan el wiki_source
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\n---\n\n' "$page_title" "$clean_name")
+                fi
+
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
                 cat "$file" >> "$tmpfile"
                 mv "$tmpfile" "$file"
-                echo "Front matter inyectado en $file"
+                echo "✍️ Front matter inyectado en $file"
               fi
             done
           done
-          
-          echo "Estructura final de _wikis:"
+
+          echo "📂 Estructura final de _wikis:"
           tree _wikis/
 
       - name: Build Jekyll site

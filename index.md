@@ -18,7 +18,6 @@ title: "Inicio"
 ## 📚 Wikis Integradas
 
 ### 📌 Contenido del Repositorio Local
-Organizado en categorías para facilitar el acceso.
 
 - **📖 Blogs**
   {% for page in site.wiki %}
@@ -69,4 +68,3 @@ Las siguientes wikis provienen de otros repositorios y se organizan de forma ind
 ---
 
 > 📅 **Actualizado el:** {{ site.time | date: "%d/%m/%Y" }}
-
