@@ -23,10 +23,6 @@ jobs:
       - name: Checkout main repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y jq tree
-
       - name: Load Wiki Config
         id: wiki-config
         run: |
@@ -82,7 +78,14 @@ jobs:
             mkdir -p "_wikis/${clean_name}"
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
-            find "$wiki_dir" -maxdepth 2 -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
+            find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
+              # 🔹 Normalizar el nombre del archivo
+              normalized_name=$(basename "$file" | tr '‐' '-' | tr -d '[:cntrl:]')
+              new_path="_wikis/${clean_name}/${normalized_name}"
+
+              echo "🔄 Renombrando y copiando: $file → $new_path"
+              cp "$file" "$new_path"
+            done
 
             echo "📂 Archivos copiados en _wikis/${clean_name}:"
             ls -R "_wikis/${clean_name}"
@@ -91,19 +94,19 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                # 🔹 Normalizar nombre del archivo para evitar caracteres especiales
-                normalized_title=$(basename "$file" .md | tr '‐' '-' | tr -d '[:cntrl:]')
+                # 🔹 Extraer título limpio
+                page_title=$(basename "$file" .md | tr '‐' '-' | tr -d '[:cntrl:]')
 
-                # 🔹 Detectar categoría en base al nombre del archivo limpio
-                case "$normalized_title" in
+                # 🔹 Detectar categoría basada en el título limpio
+                case "$page_title" in
                   Blog-*) category="blogs" ;;
                   Articulo-*) category="articulos" ;;
                   Tutorial-*) category="tutoriales" ;;
                   *) category="otros" ;;
                 esac
 
-                # 📝 Inyectar Front Matter con la categoría correcta
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$normalized_title" "$clean_name" "$category")
+                # 📝 Inyectar Front Matter corregido
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
