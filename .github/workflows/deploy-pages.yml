@@ -79,38 +79,43 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
+              # 🔹 Normalizar nombre del archivo: eliminamos caracteres extraños y aseguramos que los espacios sean guiones
               normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr -d '[:cntrl:]' | sed -E 's/--/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
               echo "🔄 Renombrando y copiando: $file → $new_path"
               cp "$file" "$new_path"
+            done
 
-              # 🔹 Obtener el último commit del archivo
-              commit_message=$(git log -1 --pretty=%s -- "$file" 2>/dev/null || echo "Sin cambios recientes")
+            echo "📂 Archivos copiados en _wikis/${clean_name}:"
+            ls -R "_wikis/${clean_name}"
 
-              echo "📜 Último commit del archivo: '$commit_message'"
+            for file in _wikis/"${clean_name}"/*.md; do
+              if head -n 1 "$file" | grep -q "^---"; then
+                echo "✅ El archivo $file ya tiene front matter, se omite inyección."
+              else
+                # 🔹 Extraer nombre del archivo sin la extensión y eliminar caracteres extraños
+                base_name=$(basename "$file" .md | sed -E 's/‐/-/g' | tr '[:upper:]' '[:lower:]')
 
-              # 🔹 Extraer nombre del archivo sin la extensión
-              base_name=$(basename "$file" .md | sed -E 's/‐/-/g' | tr '[:upper:]' '[:lower:]')
+                # 🔹 Detectar categoría en base al nombre del archivo
+                case "$base_name" in
+                  blog-*) category="blogs" ;;
+                  articulo-*) category="articulos" ;;
+                  tutorial-*) category="tutoriales" ;;
+                  *) category="otros" ;;
+                esac
 
-              # 🔹 Detectar categoría en base al nombre del archivo
-              case "$base_name" in
-                blog-*) category="blogs" ;;
-                articulo-*) category="articulos" ;;
-                tutorial-*) category="tutoriales" ;;
-                *) category="otros" ;;
-              esac
+                echo "📝 Asignando categoría '$category' a '$base_name'"
 
-              echo "📝 Asignando categoría '$category' a '$base_name'"
+                # 📝 Generar el Front Matter con la categoría correcta
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$base_name" "$clean_name" "$category")
 
-              # 📝 Generar el Front Matter con la categoría correcta y el commit
-              frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\ndescription: "%s"\n---\n\n' "$base_name" "$clean_name" "$category" "$commit_message")
-
-              tmpfile="${file}.tmp"
-              echo "$frontmatter" > "$tmpfile"
-              cat "$file" >> "$tmpfile"
-              mv "$tmpfile" "$file"
-              echo "✍️ Front matter inyectado en $file (Categoría: $category, Descripción: $commit_message)"
+                tmpfile="${file}.tmp"
+                echo "$frontmatter" > "$tmpfile"
+                cat "$file" >> "$tmpfile"
+                mv "$tmpfile" "$file"
+                echo "✍️ Front matter inyectado en $file (Categoría: $category)"
+              fi
             done
           done
 

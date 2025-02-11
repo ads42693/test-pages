@@ -13,7 +13,6 @@ Explora los artículos publicados sobre metodologías y mejores prácticas.
   <thead>
     <tr>
       <th>📄 Nombre</th>
-      <th>📌 Descripción</th>
       <th>🔗 Enlace</th>
     </tr>
   </thead>
@@ -21,11 +20,10 @@ Explora los artículos publicados sobre metodologías y mejores prácticas.
     {% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "articulos" %}
     {% for page in articulos %}
       {% assign title_lower = page.title | downcase %}
-      {% assign without_prefix = title_lower | remove_first: "blog-" | remove_first: "articulo-" | remove_first: "tutorial-" %}
+      {% assign without_prefix = title_lower | remove_first: "articulo-" %}
       {% assign clean_name = without_prefix | strip | capitalize %}
       <tr>
         <td>{{ clean_name }}</td>
-        <td>Artículo técnico relevante</td>
         <td>
           <a class="btn btn-primary text-dark" 
              href="{{ page.url | relative_url }}" 
