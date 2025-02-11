@@ -1,111 +1,119 @@
-# 🌐 Documentación Transformación Digital
+# 🌐 Documentación de Transformación Digital
 
-Bienvenido al repositorio de documentación para el área de Transformación Digital. Aquí encontrarás guías, tutoriales, blogs y más para ayudarte en tu viaje digital.
+Bienvenido al repositorio de documentación para el área de **Transformación Digital**. Aquí encontrarás **blogs, artículos, tutoriales y documentación técnica** organizada de manera eficiente.
 
-## 📁 Estructura del Proyecto
+---
 
-La estructura del proyecto es la siguiente:
+## 📁 **Estructura del Proyecto**
 
-```plaintext
-nsp-tfd-docs-uti-portal/
-├── _config.yml
-├── _config_dev.yml
+El proyecto está estructurado de la siguiente manera:
+
+```
+.
 ├── Dockerfile
 ├── Gemfile
 ├── Gemfile.lock
 ├── README.md
-├── _posts/
-│   ├── 2023-01-01-welcome-to-jekyll.markdown
-│   └── ...
-├── _layouts/
-│   ├── default.html
-│   └── post.html
-└── ...
+├── _config.yml
+├── _config_dev.yml
+├── articulos.md
+├── blogs.md
+├── config
+│   └── wikis.yml
+├── docker-compose.yml
+├── index.md
+└── tutoriales.md
 ```
 
-- **_config.yml**: Configuración principal de Jekyll.
-- **_config_dev.yml**: Configuración adicional para el entorno de desarrollo.
-- **Dockerfile**: Archivo para construir la imagen Docker.
-- **Gemfile**: Lista de dependencias Ruby.
-- **Gemfile.lock**: Archivo de bloqueo de dependencias.
-- **README.md**: Este archivo de documentación.
-- **_posts/**: Directorio que contiene las publicaciones del blog.
-- **_layouts/**: Plantillas HTML para el sitio.
+- **`config/wikis.yml`**: Archivo donde se configuran las wikis externas.
+- **`index.md`**: Página principal con enlaces a todas las secciones.
+- **`articulos.md`**, **`blogs.md`**, **`tutoriales.md`**: Secciones dinámicas generadas con Jekyll.
+- **`Dockerfile`**, **`docker-compose.yml`**: Configuración para ejecución en contenedores.
+- **`Gemfile`**, **`_config.yml`**: Dependencias y configuración de Jekyll.
 
-## 📋 Requisitos Previos
+---
 
-- Docker 🐳
-- Ruby y Bundler 💎
-- GitHub Pages 📄
+## 🔄 **Wikis Dinámicas**
 
-## 💻 Desarrollo Local
+Las wikis externas se gestionan automáticamente a través del archivo **`config/wikis.yml`**, permitiendo sincronizar documentación desde otros repositorios.
 
-Para desarrollar y probar el sitio localmente, puedes usar Docker para crear un entorno consistente.
+**Ejemplo de configuración en `config/wikis.yml`:**
+```yaml
+wikis:
+  - name: "Mi-Nueva-Wiki"
+    url: "https://github.com/mi-org/mi-nueva-wiki.wiki.git"
 
-### 🐳 Usando Docker
+  - name: "Otra-Wiki"
+    url: "https://github.com/mi-org/otra-wiki.wiki.git"
+```
 
-1. Construir la imagen Docker:
+Cuando se edita este archivo y se sube un cambio a la rama `develop`, el workflow de GitHub Actions ejecuta un proceso automático que **clona, categoriza y enlaza** las wikis dinámicamente.
 
-    ```sh
-    docker build -t my-jekyll-site .
-    ```
+**Estructura generada en `_wikis/` en tiempo de ejecución:**
+```
+_wikis/
+├── <nombre-de-la-wiki>
+│   ├── blog-nombre.md
+│   ├── articulo-nombre.md
+│   ├── tutorial-nombre.md
+│   ├── ...
+└── <otra-wiki>
+    ├── ...
+```
+✨ **Importante**: Para que los archivos sean correctamente categorizados, deben tener un prefijo como `blog-`, `articulo-`, `tutorial-`.
 
-2. Ejecutar el contenedor Docker:
+---
 
-    ```sh
-    docker run -p 4000:4000 my-jekyll-site
-    ```
+## 🚀 **Cómo Ejecutar el Proyecto Localmente**
 
-Esto servirá tu sitio en `http://localhost:4000`.
+Puedes correr el sitio de documentación de dos formas:
 
-### 🚀 Sin Docker
+### 🐳 **Usando Docker**
+1. Construir la imagen:
+   ```sh
+   docker build -t jekyll-docs .
+   ```
+2. Ejecutar el contenedor:
+   ```sh
+   docker run -p 4000:4000 jekyll-docs
+   ```
+   Esto servirá el sitio en `http://localhost:4000`.
 
-1. Instalar las dependencias:
+### ⚡ **Ejecutar Jekyll sin Docker**
+1. Instalar dependencias:
+   ```sh
+   bundle install
+   ```
+2. Iniciar el servidor Jekyll:
+   ```sh
+   bundle exec jekyll serve --config _config.yml,_config_dev.yml
+   ```
+   También se servirá en `http://localhost:4000`.
 
-    ```sh
-    bundle install
-    ```
+---
 
-2. Ejecutar Jekyll:
+## 🔄 **Automatización con GitHub Actions**
+El despliegue del sitio está automatizado con **GitHub Actions**. Cada cambio en la rama `develop` genera una actualización en **GitHub Pages**.
 
-    ```sh
-    bundle exec jekyll serve --config _config.yml,_config_dev.yml
-    ```
+### ⚙️ **Workflows principales**
+- **`deploy.yml`**: Genera y despliega la documentación.
+- **`sync-wikis.yml`**: Sincroniza las wikis cada vez que se edita `config/wikis.yml`.
+- **`build.yml`**: Compila y prueba el sitio en cada push.
 
-Esto también servirá tu sitio en `http://localhost:4000`.
+---
 
-## 🚀 Despliegue en GitHub Pages
+## 🤝 **Contribuciones**
+¡Las contribuciones son bienvenidas! Sigue estos pasos:
 
-El despliegue en GitHub Pages se maneja automáticamente mediante GitHub Actions. Los archivos de configuración para los workflows se encuentran en `.github/workflows`.
+1. **Haz un fork** del repositorio.
+2. **Crea una rama** (`git checkout -b feature/nueva-funcionalidad`).
+3. **Realiza cambios** y haz commit (`git commit -am "Nueva funcionalidad"`).
+4. **Haz push** a la rama (`git push origin feature/nueva-funcionalidad`).
+5. **Abre un Pull Request** 🚀.
 
-### ⚙️ Workflows
+---
 
-- **deploy-pages.yml**: Despliega el sitio en GitHub Pages cada vez que hay un push a la rama `develop`.
-- **deploy.yml**: Despliega la documentación usando MkDocs.
-- **sync-wikis.yml**: Sincroniza las wikis de los proyectos cada lunes a las 8 AM (UTC).
+## 📜 **Licencia**
+Este proyecto está licenciado bajo la **Licencia MIT**.
 
-## 🛠️ Buenas Prácticas
-
-1. **Versionar el Dockerfile**: Mantén tu Dockerfile en el control de versiones junto con tu código fuente.
-2. **Usar Imágenes Base Estables**: Selecciona imágenes base estables y específicas (por ejemplo, `ruby:3.0`).
-3. **Minimizar el Tamaño de la Imagen**: Elimina archivos temporales y cachés después de la instalación de dependencias.
-4. **Seguridad**: No incluyas credenciales sensibles en el Dockerfile. Usa variables de entorno y secretos gestionados por el sistema de despliegue.
-5. **Documentación**: Mantén este README actualizado con instrucciones claras para el desarrollo y despliegue del proyecto.
-
-## 🤝 Contribuciones
-
-Las contribuciones son bienvenidas. Por favor, sigue los siguientes pasos:
-
-1. Haz un fork del repositorio.
-2. Crea una nueva rama (`git checkout -b feature/nueva-funcionalidad`).
-3. Realiza tus cambios y haz commit (`git commit -am 'Agrega nueva funcionalidad'`).
-4. Haz push a la rama (`git push origin feature/nueva-funcionalidad`).
-5. Abre un Pull Request.
-
-## 📜 Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT. Consulta el archivo LICENSE para más detalles.
-
-## 📞 Contacto
-
-Para cualquier consulta o soporte, por favor contacta a [adrian.arellano@sanna.pe](adrian.arellano@sanna.pe).
+📅 **Última actualización:** {{ site.time | date: "%d/%m/%Y" }}
