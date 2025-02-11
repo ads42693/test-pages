@@ -21,11 +21,19 @@ Explora los blogs disponibles sobre nuestras herramientas y metodologías.
   </thead>
   <tbody>
     {% for page in blogs %}
-      {% assign clean_name = page.title | downcase | regex_replace: "^(blog|articulo|tutorial)-", "" | strip | capitalize %}
+      {% assign title_lower = page.title | downcase %}
+      {% assign without_prefix = title_lower | remove_first: "blog-" | remove_first: "articulo-" | remove_first: "tutorial-" %}
+      {% assign clean_name = without_prefix | strip | capitalize %}
       <tr>
         <td>{{ clean_name }}</td>
         <td>Blog relacionado con nuestras herramientas</td>
-        <td><a class="btn btn-primary text-dark" href="{{ page.url | relative_url }}" style="color: #007bff; text-decoration: underline;">Ver más</a></td>
+        <td>
+          <a class="btn btn-primary text-dark" 
+             href="{{ page.url | relative_url }}" 
+             style="color: #007bff; text-decoration: underline;">
+            Ver más
+          </a>
+        </td>
       </tr>
     {% endfor %}
   </tbody>
