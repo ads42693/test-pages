@@ -91,18 +91,19 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                page_title=$(basename "$file" .md)
+                # 🔹 Normalizar nombre del archivo para evitar caracteres especiales
+                normalized_title=$(basename "$file" .md | tr '‐' '-' | tr -d '[:cntrl:]')
 
-                # 🔹 Detectar categoría en base al nombre del archivo
-                case "$page_title" in
+                # 🔹 Detectar categoría en base al nombre del archivo limpio
+                case "$normalized_title" in
                   Blog-*) category="blogs" ;;
                   Articulo-*) category="articulos" ;;
                   Tutorial-*) category="tutoriales" ;;
                   *) category="otros" ;;
                 esac
 
-                # 📝 Inyectar Front Matter en formato de lista YAML
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
+                # 📝 Inyectar Front Matter con la categoría correcta
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$normalized_title" "$clean_name" "$category")
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
