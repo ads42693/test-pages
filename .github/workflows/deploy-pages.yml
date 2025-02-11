@@ -79,7 +79,7 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar el nombre del archivo (eliminando caracteres extraños y reemplazando espacios)
+              # 🔹 Normalizar nombre del archivo: eliminamos caracteres extraños y aseguramos que los espacios sean guiones
               normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr -d '[:cntrl:]' | sed -E 's/--/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
@@ -94,19 +94,18 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                # 🔹 Extraer nombre del archivo sin la extensión
-                base_name=$(basename "$file" .md)
+                # 🔹 Extraer nombre del archivo sin la extensión y eliminar caracteres extraños
+                base_name=$(basename "$file" .md | sed -E 's/‐/-/g' | tr '[:upper:]' '[:lower:]')
 
                 # 🔹 Detectar categoría en base al nombre del archivo
-                if [[ "$base_name" == Blog-* ]]; then
-                  category="blogs"
-                elif [[ "$base_name" == Articulo-* ]]; then
-                  category="articulos"
-                elif [[ "$base_name" == Tutorial-* ]]; then
-                  category="tutoriales"
-                else
-                  category="otros"
-                fi
+                case "$base_name" in
+                  blog-*) category="blogs" ;;
+                  articulo-*) category="articulos" ;;
+                  tutorial-*) category="tutoriales" ;;
+                  *) category="otros" ;;
+                esac
+
+                echo "📝 Asignando categoría '$category' a '$base_name'"
 
                 # 📝 Generar el Front Matter con la categoría correcta
                 frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$base_name" "$clean_name" "$category")
