@@ -18,18 +18,24 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 ### 📌 Contenido del Repositorio Local
 
 - **📖 Blogs**
-  {% for page in site.blogs %}
-    - [{{ page.title }}]({{ page.url | relative_url }})
+  {% for page in site.wiki %}
+    {% if page.wiki_source == "local-wiki" and page.categories == "blogs" %}
+      - [{{ page.title }}]({{ page.url | relative_url }})
+    {% endif %}
   {% endfor %}
 
 - **📑 Artículos**
-  {% for page in site.articulos %}
-    - [{{ page.title }}]({{ page.url | relative_url }})
+  {% for page in site.wiki %}
+    {% if page.wiki_source == "local-wiki" and page.categories == "articulos" %}
+      - [{{ page.title }}]({{ page.url | relative_url }})
+    {% endif %}
   {% endfor %}
 
 - **🎓 Tutoriales**
-  {% for page in site.tutoriales %}
-    - [{{ page.title }}]({{ page.url | relative_url }})
+  {% for page in site.wiki %}
+    {% if page.wiki_source == "local-wiki" and page.categories == "tutoriales" %}
+      - [{{ page.title }}]({{ page.url | relative_url }})
+    {% endif %}
   {% endfor %}
 
 ---
