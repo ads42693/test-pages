@@ -7,7 +7,7 @@ timezone: "America/Lima"
 # --- Entorno de GitHub Pages ---
 url: "https://ads42693.github.io"
 baseurl: "/test-pages"
-repository: "ads42693.github.io/test-pages"
+repository: ads42693/test-pages
 
 # --- Habilitar Colecciones para Wikis y Categorías ---
 collections:
