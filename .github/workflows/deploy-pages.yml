@@ -104,7 +104,8 @@ jobs:
                   category="otros"
                 fi
 
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: "%s"\n---\n\n' "$page_title" "$clean_name" "$category")
+                #frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: "%s"\n---\n\n' "$page_title" "$clean_name" "$category")
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
