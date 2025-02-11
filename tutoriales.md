@@ -21,11 +21,11 @@ Explora los tutoriales detallados disponibles.
     {% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "tutoriales" %}
     {% for page in tutoriales %}
       {% assign title_lower = page.title | downcase %}
-      {% assign without_prefix = title_lower | remove_first: "blog-" | remove_first: "articulo-" | remove_first: "tutorial-" %}
+      {% assign without_prefix = title_lower | remove_first: "tutorial-" %}
       {% assign clean_name = without_prefix | strip | capitalize %}
       <tr>
         <td>{{ clean_name }}</td>
-        <td>Guía paso a paso sobre herramientas y procesos</td>
+        <td>{{ page.description | default: "Tutorial detallado sobre herramientas y procesos." }}</td>
         <td>
           <a class="btn btn-primary text-dark" 
              href="{{ page.url | relative_url }}" 
