@@ -95,7 +95,8 @@ jobs:
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
                 # 🔹 Extraer título limpio
-                page_title=$(basename "$file" .md | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
+                # page_title=$(basename "$file" .md | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
+                page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | tr '‐' '-' | tr -d '[:cntrl:]')
 
                 # 🔹 Definir si es local o externo
                 if [[ "$clean_name" == "local-wiki" ]]; then
