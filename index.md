@@ -61,14 +61,18 @@ Las siguientes wikis provienen de otros repositorios y se organizan de forma ind
 
 {% assign external_wikis = site.wiki | where_exp: "page", "page.wiki_source != 'local-wiki'" %}
 
-{% for wiki_group in external_wikis | group_by: "wiki_source" %}
+{% if external_wikis.size > 0 %}
+  {% for wiki_group in external_wikis | group_by: "wiki_source" %}
   ### 🔹 {{ wiki_group.name }}
   <ul>
     {% for page in wiki_group.items %}
       <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
     {% endfor %}
   </ul>
-{% endfor %}
+  {% endfor %}
+{% else %}
+  <p>⚠️ No se encontraron wikis externas.</p>
+{% endif %}
 
 ---
 

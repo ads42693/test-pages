@@ -71,7 +71,7 @@ jobs:
           mkdir -p _wikis
           echo "📂 Listado de archivos en wikis/ antes de procesar:"
           ls -R wikis/
-          
+
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
@@ -79,7 +79,7 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar el nombre del archivo para evitar caracteres especiales
+              # 🔹 Normalizar nombre del archivo
               normalized_name=$(basename "$file" | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
@@ -97,22 +97,26 @@ jobs:
                 # 🔹 Extraer título limpio
                 page_title=$(basename "$file" .md | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
 
-                # 🔹 Detectar categoría basada en el título limpio
-                case "$page_title" in
-                  Blog-*) category="blogs" ;;
-                  Articulo-*) category="articulos" ;;
-                  Tutorial-*) category="tutoriales" ;;
-                  *) category="otros" ;;
-                esac
-
-                # 📝 Inyectar Front Matter corregido
-                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
+                # 🔹 Definir si es local o externo
+                if [[ "$clean_name" == "local-wiki" ]]; then
+                  # 🔹 Categorizar solo si es un wiki local
+                  case "$page_title" in
+                    Blog-*) category="blogs" ;;
+                    Articulo-*) category="articulos" ;;
+                    Tutorial-*) category="tutoriales" ;;
+                    *) category="otros" ;;
+                  esac
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
+                else
+                  # 🔹 Para wikis externas, no categorizar
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\n---\n\n' "$page_title" "$clean_name")
+                fi
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
                 cat "$file" >> "$tmpfile"
                 mv "$tmpfile" "$file"
-                echo "✍️ Front matter inyectado en $file con categoría: $category"
+                echo "✍️ Front matter inyectado en $file (Categoría: ${category:-'N/A'})"
               fi
             done
           done
