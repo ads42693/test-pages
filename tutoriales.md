@@ -25,7 +25,7 @@ Explora los tutoriales detallados disponibles.
       {% assign clean_name = without_prefix | strip | capitalize %}
       <tr>
         <td>{{ clean_name }}</td>
-        <td>{{ page.description | default: "Tutorial detallado sobre herramientas y procesos." }}</td>
+        <td>{{ page.description | default: "Última actualización: Sin descripción disponible" }}</td>
         <td>
           <a class="btn btn-primary text-dark" 
              href="{{ page.url | relative_url }}" 
