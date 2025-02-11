@@ -79,7 +79,7 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              normalized_name=$(basename "$file" | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
+              normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr -d '[:cntrl:]' | sed -E 's/--/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
               echo "🔄 Renombrando y copiando: $file → $new_path"
@@ -96,10 +96,10 @@ jobs:
                 page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed 's/--/-/g' | tr -s '-' ' ')
 
                 if [[ "$clean_name" == "local-wiki" ]]; then
-                  case "$file" in
-                    *_Blog-*|*blog-*) category="blogs" ;;
-                    *_Articulo-*|*articulo-*) category="articulos" ;;
-                    *_Tutorial-*|*tutorial-*) category="tutoriales" ;;
+                  case "$(basename "$file")" in
+                    Blog-*) category="blogs" ;;
+                    Articulo-*) category="articulos" ;;
+                    Tutorial-*) category="tutoriales" ;;
                     *) category="otros" ;;
                   esac
                   frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
@@ -131,7 +131,7 @@ jobs:
           fi
           # 📌 Aplicar estilos personalizados correctamente
           mkdir -p _wiki/assets/css
-          echo -e "@media (min-width: 0px) { .btn[href*='github'] { display: none !important; }}" > _wiki/assets/css/custom.css
+          echo -e "body .btn[href*='github'] { display: none !important; }" > _wiki/assets/css/custom.css
           echo "✅ Estilos personalizados añadidos correctamente."
           
           bundle exec jekyll build --config _config.yml

@@ -5,6 +5,8 @@ title: "Blogs"
 
 # 📖 Blogs
 
+[⬅ Volver al inicio]({{ site.baseurl }}/)
+
 Explora los blogs disponibles sobre nuestras herramientas y metodologías.
 
 | Blog | Descripción | Enlace |

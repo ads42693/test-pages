@@ -5,6 +5,8 @@ title: "Tutoriales"
 
 # 🎓 Tutoriales
 
+[⬅ Volver al inicio]({{ site.baseurl }}/)
+
 Explora los tutoriales detallados disponibles.
 
 | Tutorial | Descripción | Enlace |

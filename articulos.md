@@ -5,6 +5,8 @@ title: "Artículos"
 
 # 📑 Artículos
 
+[⬅ Volver al inicio]({{ site.baseurl }}/)
+
 Explora los artículos publicados sobre metodologías y mejores prácticas.
 
 | Artículo | Descripción | Enlace |
