@@ -19,6 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout main repository
         uses: actions/checkout@v4
 
@@ -40,7 +41,7 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+          echo '[{"name":"skills-wiki","url":"https://github.com/ads42693/skills-github-pages.wiki.git"}]' | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
@@ -56,10 +57,6 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
-          
-          echo "Listado de archivos en wikis/ antes de procesar:"
-          ls -R wikis/
-          
           # Procesar todas las wikis: recorre cada directorio dentro de "wikis" (excepto el propio "wikis")
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
@@ -70,13 +67,8 @@ jobs:
             # Crear directorio de destino para la wiki
             mkdir -p "_wikis/${clean_name}"
             
-            # Copiar todos los archivos Markdown a la carpeta correspondiente.
-            # Si tus wikis locales tienen los .md en subcarpetas, ajusta el -maxdepth.
-            find "$wiki_dir" -maxdepth 1 -type f -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
-            
-            echo "Archivos copiados en _wikis/${clean_name}:"
-            ls -R "_wikis/${clean_name}"
-            
+            # Copiar todos los archivos Markdown a la carpeta correspondiente
+            find "$wiki_dir" -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
             # Recorrer cada archivo Markdown para inyectar el front matter
             for file in _wikis/"${clean_name}"/*.md; do
               # Si el archivo ya tiene front matter, se omite la inyección.
@@ -86,9 +78,9 @@ jobs:
                 # Extraer el nombre de la página del nombre del archivo (sin la extensión)
                 page_title=$(basename "$file" .md)
                 # Inyectar el front matter utilizando:
-                # - title: el nombre de la página (obtenido del nombre del archivo)
-                # - wiki_source: el nombre normalizado de la wiki
-                # - wiki_name: el nombre de la página (igual que title)
+                # - title: el nombre de la página (original) obtenido del nombre del archivo
+                # - wiki_source: el nombre normalizado de la wiki (para agrupar si es necesario)
+                # - wiki_name: el nombre de la página, igual que title
                 frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\nwiki_name: "%s"\n---\n\n' "$page_title" "$clean_name" "$page_title")
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
@@ -98,9 +90,6 @@ jobs:
               fi
             done
           done
-          
-          echo "Listado final de archivos en _wikis/:"
-          ls -R _wikis/
 
       - name: Build Jekyll site
         env:
@@ -121,6 +110,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+    
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
