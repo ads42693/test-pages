@@ -18,11 +18,11 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 ### 📌 Contenido del Repositorio Local
 
 - **📖 Blogs**
-  {% assign blogs = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "blogs" %}
+  {% assign blogs = site.wiki | where: "wiki_source", "local-wiki" | where_exp: "item", "item.categories contains 'blogs'" %}
   {% if blogs.size > 0 %}
     <ul>
     {% for page in blogs %}
-      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
     {% endfor %}
     </ul>
   {% else %}
@@ -30,11 +30,11 @@ title: "Bienvenido a la Documentación de Transformación Digital"
   {% endif %}
 
 - **📑 Artículos**
-  {% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "articulos" %}
+  {% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where_exp: "item", "item.categories contains 'articulos'" %}
   {% if articulos.size > 0 %}
     <ul>
     {% for page in articulos %}
-      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
     {% endfor %}
     </ul>
   {% else %}
@@ -42,11 +42,11 @@ title: "Bienvenido a la Documentación de Transformación Digital"
   {% endif %}
 
 - **🎓 Tutoriales**
-  {% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "tutoriales" %}
+  {% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where_exp: "item", "item.categories contains 'tutoriales'" %}
   {% if tutoriales.size > 0 %}
     <ul>
     {% for page in tutoriales %}
-      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
     {% endfor %}
     </ul>
   {% else %}
@@ -59,15 +59,25 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 
 Las siguientes wikis provienen de otros repositorios y se organizan de forma independiente.
 
-{% assign external_wikis = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki'" %}
+{% assign external_wikis = site.wiki | where_exp: "wiki", "wiki.wiki_source != 'local-wiki' and wiki.wiki_source != nil" %}
 {% assign grouped_external_wikis = external_wikis | group_by: "wiki_source" %}
 
-{% for wiki_group in grouped_external_wikis %}
-### 🔹 {{ wiki_group.name }}
-{% for page in wiki_group.items %}
-- [{{ page.title }}]({{ page.url | relative_url }})
-{% endfor %}
-{% endfor %}
+{% if grouped_external_wikis.size > 0 %}
+  {% for wiki_group in grouped_external_wikis %}
+  ### 🔹 {{ wiki_group.name }}
+  {% if wiki_group.items.size > 0 %}
+    <ul>
+    {% for page in wiki_group.items %}
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' | replace: '--', '-' }}</a></li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p>⚠️ No hay páginas disponibles en esta wiki.</p>
+  {% endif %}
+  {% endfor %}
+{% else %}
+  <p>⚠️ No hay wikis externas disponibles.</p>
+{% endif %}
 
 ---
 

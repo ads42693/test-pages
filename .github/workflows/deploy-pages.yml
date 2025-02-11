@@ -79,8 +79,9 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar nombre del archivo y evitar múltiples guiones
-              normalized_name=$(basename "$file" | sed -E 's/\s+/-/g' | sed -E 's/--+/-/g' | tr -d '[:cntrl:]')
+              # 🔹 Normalizar el nombre del archivo correctamente
+              normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
+              normalized_name=$(echo "$normalized_name" | sed -E 's/--+/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
               echo "🔄 Renombrando y copiando: $file → $new_path"
@@ -94,33 +95,25 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                # 🔹 Extraer título limpio eliminando prefijos y normalizando guiones
+                # 🔹 Extraer título limpio eliminando prefijos
                 page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed -E 's/--+/-/g' | tr -s '-' ' ')
 
-                # 🔹 Definir si es local o externo
-                if [[ "$clean_name" == "local-wiki" ]]; then
-                  # 🔹 Categorizar archivos locales
-                  case "$file" in
-                    *_Blog-*) category="blogs" ;;
-                    *_Articulo-*) category="articulos" ;;
-                    *_Tutorial-*) category="tutoriales" ;;
-                    *) category="otros" ;;
-                  esac
+                # 🔹 Categorizar correctamente
+                category="otros"
+                [[ "$file" =~ "Blog-" ]] && category="blogs"
+                [[ "$file" =~ "Articulo-" ]] && category="articulos"
+                [[ "$file" =~ "Tutorial-" ]] && category="tutoriales"
 
-                  # 📝 Inyectar front matter con breadcrumbs
-                  breadcrumb="<nav><a href='{{ site.baseurl }}/'>Inicio</a> > <a href='{{ site.baseurl }}/${category}/'>${category^}</a> > ${page_title}</nav>"
+                # 📝 Inyectar breadcrumbs y eliminar botón GitHub
+                breadcrumb="<nav><a href='{{ site.baseurl }}/'>Inicio</a> > <a href='{{ site.baseurl }}/${category}/'>${category^}</a> > ${page_title}</nav>"
 
-                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n%s\n\n' "$page_title" "$clean_name" "$category" "$breadcrumb")
-                else
-                  # 🔹 Wikis externas sin categorización
-                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\n---\n\n' "$page_title" "$clean_name")
-                fi
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\nhide_github_button: true\n---\n\n%s\n\n' "$page_title" "$clean_name" "$category" "$breadcrumb")
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
                 cat "$file" >> "$tmpfile"
                 mv "$tmpfile" "$file"
-                echo "✍️ Front matter inyectado en $file (Categoría: ${category:-'N/A'})"
+                echo "✍️ Front matter inyectado en $file (Categoría: ${category})"
               fi
             done
           done
@@ -133,15 +126,24 @@ jobs:
           JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p _wiki
+
+          # 📂 Verificar si _wikis/ tiene contenido antes de copiar
           if [ -n "$(ls -A _wikis/)" ]; then
             cp -r _wikis/* _wiki/
           else
-            echo "⚠️ _wikis está vacío. No se copian archivos."
+            echo "⚠️ _wikis está vacío. Creando un placeholder."
+            echo "# Bienvenido" > _wiki/index.md
           fi
-          # 📌 Sobrescribir estilos para ocultar "View on GitHub"
+
+          # 📌 Añadir estilos personalizados para ocultar "View on GitHub"
           mkdir -p _wiki/assets/css
           echo ".btn[href*='github'] { display: none !important; }" > _wiki/assets/css/custom.css
-          echo "✅ Estilos personalizados añadidos para ocultar 'View on GitHub'."
+          echo "✅ Estilos personalizados añadidos."
+
+          # 🛠️ Validar el sitio antes de construir
+          bundle exec jekyll doctor || { echo "❌ Errores detectados en Jekyll. Revisa el _config.yml y los archivos Markdown."; exit 1; }
+
+          # 🏗️ Construcción del sitio
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
