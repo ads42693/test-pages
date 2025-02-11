@@ -69,7 +69,7 @@ jobs:
             find "$wiki_dir" -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
             
             # Inyectar front matter
-            find "_wikis/${clean_name}" -name "*.md" -exec sed -i '1s/^/---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: '"${clean_name}"'\n---\n/' {} \;
+            find "_wikis/${clean_name}" -name "*.md" -exec sh -c 'echo "---\nlayout: cayman\ntitle: \"Página Wiki\"\nwiki_source: \"${clean_name}\"\n---\n$(cat {})" > {}' \;
           done
 
       - name: Build Jekyll site
