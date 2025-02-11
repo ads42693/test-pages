@@ -41,7 +41,7 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          echo '[{"name":"skills-wiki","url":"https://github.com/ads42693/skills-github-pages.wiki.git"}]' | jq -c '.[]' | while read -r wiki; do
+          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
@@ -110,7 +110,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
