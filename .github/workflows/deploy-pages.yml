@@ -53,6 +53,17 @@ jobs:
           ruby-version: "3.1"
           bundler-cache: true
 
+      - name: Process Local Wikis
+        run: |
+          # Asumiendo que el YAML se ha cargado en una variable o se procesa de alguna forma,
+          # podrías recorrer las entradas y para aquellas que tengan "path", copiar la carpeta.
+          # Ejemplo simplificado:
+          if [ -d "local-wiki" ]; then
+            mkdir -p _wikis/local-wiki
+            cp -r local-wiki/* _wikis/local-wiki/
+            echo "Procesada la wiki local 'Local Wiki'"
+          fi
+
       - name: Process Wikis
         run: |
           mkdir -p _wikis
