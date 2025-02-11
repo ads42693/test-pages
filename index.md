@@ -19,6 +19,7 @@ title: "Inicio"
 
 {% assign grouped_wikis = site.wiki | group_by: "wiki_name" %}
 
+{% assign grouped_wikis = site.wiki | group_by: "wiki_name" %}
 {% for wiki_group in grouped_wikis %}
 ### {{ wiki_group.name }}
 {% for page in wiki_group.items %}
