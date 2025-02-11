@@ -41,12 +41,15 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
+          echo "Contenido de WIKIS: ${{ steps.wiki-config.outputs.WIKIS }}"
           echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
             git clone "$url" "wikis/${name}" --depth 1 --single-branch --quiet || true
           done
+          echo "Listado de directorios en wikis/:" 
+          ls -la wikis
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
