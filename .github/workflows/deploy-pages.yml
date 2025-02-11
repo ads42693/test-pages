@@ -30,13 +30,14 @@ jobs:
         id: wiki-config
         run: |
           WIKIS_JSON=$(ruby -ryaml -rjson -e "begin; wikis = YAML.load_file('config/wikis.yml')['wikis']; wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }; puts JSON.generate(wikis); rescue; puts '[]'; end")
-          echo "WIKIS=${WIKIS_JSON}" >> $GITHUB_OUTPUT
-          echo "Contenido de WIKIS: ${WIKIS_JSON}"
+          echo "WIKIS<<EOF" >> $GITHUB_OUTPUT
+          echo "$WIKIS_JSON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Contenido de WIKIS: $WIKIS_JSON"
 
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          # Imprime el JSON sin agregar saltos de línea extra y pásalo a jq
           printf '%s' "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
