@@ -6,17 +6,14 @@ timezone: "America/Lima"
 
 # --- Entorno de GitHub Pages ---
 url: "https://ads42693.github.io"
-baseurl: "/test-pages"  # Usa variables para flexibilidad
+baseurl: "/test-pages"
 repository: "ads42693.github.io/test-pages"
 
-# --- Habilitar Wiki y Categorías ---
+# --- Habilitar Colecciones para Wikis y Categorías ---
 collections:
   wiki:
     output: true
     permalink: /wiki/:path/
-
-# 🔹 Habilitar soporte para categorías dinámicas en las wikis locales
-collections:
   blogs:
     output: true
     permalink: /blogs/:path/
@@ -51,7 +48,7 @@ exclude:
   - README.md
   - vendor
 
-# 🔹 Configuración de categorías dentro de la colección wiki
+# --- Configuración de la colección de wikis y categorías ---
 defaults:
   - scope:
       path: ""
