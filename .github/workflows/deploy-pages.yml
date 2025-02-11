@@ -36,7 +36,8 @@ jobs:
       - name: Checkout Wikis
         run: |
           mkdir -p wikis
-          echo "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
+          # Imprime el JSON sin agregar saltos de línea extra y pásalo a jq
+          printf '%s' "${{ steps.wiki-config.outputs.WIKIS }}" | jq -c '.[]' | while read -r wiki; do
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
