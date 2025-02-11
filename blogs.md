@@ -18,7 +18,8 @@ Explora los blogs disponibles sobre nuestras herramientas y metodologías.
     </tr>
   </thead>
   <tbody>
-    {% for page in site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "blogs" %}
+    {% assign blogs = site.wiki | where_exp: "page", "page.wiki_source == 'local-wiki' and page.categories contains 'blogs'" %}
+    {% for page in blogs %}
       <tr>
         <td>{{ page.title | remove_first: "Blog-" | remove_first: "Articulo-" | remove_first: "Tutorial-" }}</td>
         <td>Blog relacionado con nuestras herramientas</td>
@@ -27,3 +28,4 @@ Explora los blogs disponibles sobre nuestras herramientas y metodologías.
     {% endfor %}
   </tbody>
 </table>
+
