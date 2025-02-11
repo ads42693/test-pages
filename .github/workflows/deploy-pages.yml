@@ -79,6 +79,7 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
+              # 🔹 Normalizar el nombre del archivo (eliminando caracteres extraños y reemplazando espacios)
               normalized_name=$(basename "$file" | sed -E 's/[[:space:]]+/-/g' | tr -d '[:cntrl:]' | sed -E 's/--/-/g')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
@@ -93,25 +94,28 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed 's/--/-/g' | tr -s '-' ' ')
+                # 🔹 Extraer nombre del archivo sin la extensión
+                base_name=$(basename "$file" .md)
 
-                if [[ "$clean_name" == "local-wiki" ]]; then
-                  case "$(basename "$file")" in
-                    Blog-*) category="blogs" ;;
-                    Articulo-*) category="articulos" ;;
-                    Tutorial-*) category="tutoriales" ;;
-                    *) category="otros" ;;
-                  esac
-                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$page_title" "$clean_name" "$category")
+                # 🔹 Detectar categoría en base al nombre del archivo
+                if [[ "$base_name" == Blog-* ]]; then
+                  category="blogs"
+                elif [[ "$base_name" == Articulo-* ]]; then
+                  category="articulos"
+                elif [[ "$base_name" == Tutorial-* ]]; then
+                  category="tutoriales"
                 else
-                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\n---\n\n' "$page_title" "$clean_name")
+                  category="otros"
                 fi
+
+                # 📝 Generar el Front Matter con la categoría correcta
+                frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$base_name" "$clean_name" "$category")
 
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
                 cat "$file" >> "$tmpfile"
                 mv "$tmpfile" "$file"
-                echo "✍️ Front matter inyectado en $file (Categoría: ${category:-'N/A'})"
+                echo "✍️ Front matter inyectado en $file (Categoría: $category)"
               fi
             done
           done
