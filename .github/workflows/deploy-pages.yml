@@ -76,15 +76,14 @@ jobs:
           echo "📂 Listado de archivos en wikis/ antes de procesar:"
           ls -R wikis/
           
-          # Procesa cada directorio en wikis (excluyendo la carpeta misma)
-          find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
+          # Procesar cada directorio dentro de "wikis" (excluyendo la carpeta misma)
+          find wikis -mindepth 1 -maxdepth 1 -type d | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
-            # Normalizar nombres: convertir espacios a guiones y minúsculas
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
             mkdir -p "_wikis/${clean_name}"
             
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
-            find "$wiki_dir" -maxdepth 2 -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
+            find "$wiki_dir" -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
 
             echo "📂 Archivos copiados en _wikis/${clean_name}:"
             ls -R "_wikis/${clean_name}"
@@ -94,17 +93,21 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                page_title=$(basename "$file" .md)
+                page_title=$(basename "$file" .md | tr '-' ' ') # Reemplazar guiones por espacios para un mejor título
 
-                # 🔹 Identificar si es local o externo
+                # 🔹 Determinar si la wiki es local o externa
                 if [[ "$clean_name" == "local-wiki" ]]; then
-                  # 📌 Identificar categoría basada en la ruta del archivo
-                  case "$file" in
-                    *blogs/*) category="blogs" ;;
-                    *articulos/*) category="articulos" ;;
-                    *tutoriales/*) category="tutoriales" ;;
-                    *) category="otros" ;;  # Si no coincide con ninguna, se agrupa en "otros"
-                  esac
+                  # 📌 Determinar categoría basada en el contenido del archivo
+                  category="otros"
+                  file_lower=$(echo "$file" | tr '[:upper:]' '[:lower:]')
+
+                  if echo "$file_lower" | grep -q "blogs"; then
+                    category="blogs"
+                  elif echo "$file_lower" | grep -q "articulos"; then
+                    category="articulos"
+                  elif echo "$file_lower" | grep -q "tutoriales"; then
+                    category="tutoriales"
+                  fi
 
                   frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: "%s"\n---\n\n' "$page_title" "$clean_name" "$category")
                 

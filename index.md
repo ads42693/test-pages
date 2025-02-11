@@ -20,22 +20,23 @@ title: "Inicio"
 ### 📌 Contenido del Repositorio Local
 
 - **📖 Blogs**
-  {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories contains "blogs" %}
+  {% assign local_wiki_pages = site.wiki | where: "wiki_source", "local-wiki" %}
+  {% for page in local_wiki_pages %}
+    {% if page.categories contains "blogs" %}
       - [{{ page.title }}]({{ page.url | relative_url }})
     {% endif %}
   {% endfor %}
 
 - **📑 Artículos**
-  {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories contains "articulos" %}
+  {% for page in local_wiki_pages %}
+    {% if page.categories contains "articulos" %}
       - [{{ page.title }}]({{ page.url | relative_url }})
     {% endif %}
   {% endfor %}
 
 - **🎓 Tutoriales**
-  {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories contains "tutoriales" %}
+  {% for page in local_wiki_pages %}
+    {% if page.categories contains "tutoriales" %}
       - [{{ page.title }}]({{ page.url | relative_url }})
     {% endif %}
   {% endfor %}
