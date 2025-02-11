@@ -79,8 +79,8 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar nombre del archivo
-              normalized_name=$(basename "$file" | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
+              # 🔹 Normalizar nombre del archivo y evitar múltiples guiones
+              normalized_name=$(basename "$file" | sed -E 's/\s+/-/g' | sed -E 's/--+/-/g' | tr -d '[:cntrl:]')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
               echo "🔄 Renombrando y copiando: $file → $new_path"
@@ -94,10 +94,10 @@ jobs:
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
-                # 🔹 Extraer título limpio eliminando prefijos Blog-, Articulo-, Tutorial-
-                page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed 's/--/-/g' | tr -s '-' ' ')
+                # 🔹 Extraer título limpio eliminando prefijos y normalizando guiones
+                page_title=$(basename "$file" .md | sed -E 's/^(Blog-|Articulo-|Tutorial-)//' | sed -E 's/--+/-/g' | tr -s '-' ' ')
 
-                # 🔹 Detectar si es un wiki local
+                # 🔹 Definir si es local o externo
                 if [[ "$clean_name" == "local-wiki" ]]; then
                   # 🔹 Categorizar archivos locales
                   case "$file" in
@@ -107,7 +107,7 @@ jobs:
                     *) category="otros" ;;
                   esac
 
-                  # 📝 Inyectar breadcrumbs en HTML
+                  # 📝 Inyectar front matter con breadcrumbs
                   breadcrumb="<nav><a href='{{ site.baseurl }}/'>Inicio</a> > <a href='{{ site.baseurl }}/${category}/'>${category^}</a> > ${page_title}</nav>"
 
                   frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n%s\n\n' "$page_title" "$clean_name" "$category" "$breadcrumb")
