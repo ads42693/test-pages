@@ -77,7 +77,7 @@ jobs:
                 echo "El archivo $file ya tiene front matter, se omite inyección."
               else
                 # Crear el bloque de front matter con printf (usa saltos de línea correctamente)
-                frontmatter=$(printf '---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: "%s"\n---\n\n' "$clean_name")
+                frontmatter=$(printf -- '---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: "%s"\n---\n\n' "$clean_name")
                 # Escribir en un archivo temporal: primero el front matter y luego el contenido original
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
