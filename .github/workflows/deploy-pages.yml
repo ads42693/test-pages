@@ -31,7 +31,7 @@ jobs:
         run: |
           WIKIS_JSON=$(ruby -r yaml -r json -e '
             begin
-              puts YAML.load_file("config/wikis.yml")["wikis"].to_json
+              puts JSON.generate(YAML.load_file("config/wikis.yml")["wikis"])
             rescue
               puts [].to_json
             end
