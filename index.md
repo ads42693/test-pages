@@ -18,25 +18,40 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 ### 📌 Contenido del Repositorio Local
 
 - **📖 Blogs**
-  {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories contains "blogs" %}
-      - [{{ page.title }}]({{ page.url | relative_url }})
-    {% endif %}
-  {% endfor %}
+  {% assign blogs = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "blogs" %}
+  {% if blogs.size > 0 %}
+    <ul>
+    {% for page in blogs %}
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p>⚠️ No hay blogs disponibles.</p>
+  {% endif %}
 
 - **📑 Artículos**
-  {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories contains "articulos" %}
-      - [{{ page.title }}]({{ page.url | relative_url }})
-    {% endif %}
-  {% endfor %}
+  {% assign articulos = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "articulos" %}
+  {% if articulos.size > 0 %}
+    <ul>
+    {% for page in articulos %}
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p>⚠️ No hay artículos disponibles.</p>
+  {% endif %}
 
 - **🎓 Tutoriales**
-  {% for page in site.wiki %}
-    {% if page.wiki_source == "local-wiki" and page.categories contains "tutoriales" %}
-      - [{{ page.title }}]({{ page.url | relative_url }})
-    {% endif %}
-  {% endfor %}
+  {% assign tutoriales = site.wiki | where: "wiki_source", "local-wiki" | where: "categories", "tutoriales" %}
+  {% if tutoriales.size > 0 %}
+    <ul>
+    {% for page in tutoriales %}
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p>⚠️ No hay tutoriales disponibles.</p>
+  {% endif %}
 
 ---
 
@@ -44,13 +59,15 @@ title: "Bienvenido a la Documentación de Transformación Digital"
 
 Las siguientes wikis provienen de otros repositorios y se organizan de forma independiente.
 
-{% assign grouped_wikis = site.wiki | group_by: "wiki_source" %}
+{% assign external_wikis = site.wiki | where_exp: "page", "page.wiki_source != 'local-wiki'" %}
 
-{% for wiki_group in grouped_wikis %}
-### 🔹 {{ wiki_group.name }}
-{% for page in wiki_group.items %}
-- [{{ page.title }}]({{ page.url | relative_url }})
-{% endfor %}
+{% for wiki_group in external_wikis | group_by: "wiki_source" %}
+  ### 🔹 {{ wiki_group.name }}
+  <ul>
+    {% for page in wiki_group.items %}
+      <li><a href="{{ page.url | relative_url }}">{{ page.title | replace: '---', '-' }}</a></li>
+    {% endfor %}
+  </ul>
 {% endfor %}
 
 ---

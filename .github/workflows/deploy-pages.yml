@@ -79,8 +79,8 @@ jobs:
 
             echo "📥 Copiando archivos .md desde $wiki_dir a _wikis/${clean_name}"
             find "$wiki_dir" -maxdepth 2 -type f -name "*.md" | while read -r file; do
-              # 🔹 Normalizar el nombre del archivo
-              normalized_name=$(basename "$file" | tr '‐' '-' | tr -d '[:cntrl:]')
+              # 🔹 Normalizar el nombre del archivo para evitar caracteres especiales
+              normalized_name=$(basename "$file" | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
               new_path="_wikis/${clean_name}/${normalized_name}"
 
               echo "🔄 Renombrando y copiando: $file → $new_path"
@@ -95,7 +95,7 @@ jobs:
                 echo "✅ El archivo $file ya tiene front matter, se omite inyección."
               else
                 # 🔹 Extraer título limpio
-                page_title=$(basename "$file" .md | tr '‐' '-' | tr -d '[:cntrl:]')
+                page_title=$(basename "$file" .md | sed 's/[[:space:]]\+/-/g' | tr '‐' '-' | tr -d '[:cntrl:]')
 
                 # 🔹 Detectar categoría basada en el título limpio
                 case "$page_title" in
