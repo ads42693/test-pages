@@ -69,35 +69,47 @@ A continuación, se listan los repositorios externos disponibles.
 
 ---
 
-📃 Guía Rápida para Administrar el Contenido
+## 📖 Guía Rápida para Administrar el Contenido  
 
-Añadir contenido a la documentación es fácil y se hace a través del archivo config/wikis.yml. Sigue estos pasos:
+Para administrar la documentación, se utiliza el archivo `config/wikis.yml`. Sigue estos pasos para agregar contenido nuevo.
 
-1️⃣ Agregar un nuevo repositorio wiki
-
-Edita config/wikis.yml y añade un nuevo repositorio bajo la clave wikis:
-
+```yaml
 wikis:
   - name: "Mi-Nueva-Wiki"
     url: "https://github.com/mi-org/mi-nueva-wiki.wiki.git"
+```
 
-2️⃣ Ejecutar la acción de GitHub
+### 1️⃣ Agregar un nuevo repositorio wiki  
+Edita `config/wikis.yml` y añade un nuevo repositorio bajo la clave `wikis` como se muestra arriba.
 
-Cada vez que se actualiza el archivo wikis.yml, el flujo de trabajo en GitHub Actions se encargará de sincronizar la wiki y generar el contenido de manera automática.
+### 2️⃣ Ejecutar la acción de GitHub  
+Cada vez que se actualiza el archivo `wikis.yml`, el flujo de trabajo en **GitHub Actions** sincronizará la wiki y generará el contenido de manera automática.
 
-3️⃣ Enlaces Dinámicos
-
+### 3️⃣ Enlaces Dinámicos  
 Los archivos de las wikis se estructuran de la siguiente manera:
 
+```plaintext
 _wikis/
-├── <nombre-de-la-wiki>
+├── <nombre-de-la-wiki>/
 │   ├── <categoria>-<nombre>.md
 │   ├── ...
-└── <otra-wiki>
+└── <otra-wiki>/
     ├── ...
+```
 
-Por ejemplo, si tienes un archivo llamado tutorial-mi-guia.md, aparecerá en la sección de tutoriales automáticamente.
+📌 **Ejemplo:**  
+Si tienes un archivo llamado `tutorial-mi-guia.md`, aparecerá automáticamente en la sección de **Tutoriales**.
 
-✨ Importante: Mantén la nomenclatura de los archivos (blog-, articulo-, tutorial-) para que sean categorizados correctamente.
+---
 
-📅 Actualizado el: {{ site.time | date: "%d/%m/%Y" }}
+💡 **Importante:**  
+```plaintext
+Para que los archivos sean categorizados correctamente, deben seguir la nomenclatura:
+- blog-<nombre>.md → Sección de Blogs  
+- articulo-<nombre>.md → Sección de Artículos  
+- tutorial-<nombre>.md → Sección de Tutoriales  
+```
+
+---
+
+📅 **Actualizado el:** {{ site.time | date: "%d/%m/%Y" }}
