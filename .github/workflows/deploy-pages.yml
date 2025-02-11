@@ -29,11 +29,27 @@ jobs:
       - name: Load Wiki Config
         id: wiki-config
         run: |
-          WIKIS_JSON=$(ruby -ryaml -rjson -e "begin; wikis = YAML.load_file('config/wikis.yml')['wikis']; wikis = wikis.map { |wiki| wiki.transform_keys(&:to_s) }; puts JSON.generate(wikis); rescue; puts '[]'; end")
+          # Verifica si el archivo existe
+          if [ ! -f "config/wikis.yml" ]; then
+            echo "❌ Error: config/wikis.yml no existe"
+            exit 1
+          fi
+          
+          # Genera el JSON y maneja errores
+          WIKIS_JSON=$(ruby -ryaml -rjson -e "
+            begin
+              config = YAML.load_file('config/wikis.yml')
+              wikis = config['wikis'] || []
+              puts JSON.generate(wikis)
+            rescue => e
+              puts '[]'
+              STDERR.puts '⚠️ Error cargando YAML: #{e.message}'
+            end")
+          
+          echo "WIKIS_JSON=$WIKIS_JSON" >> $GITHUB_ENV
           echo "WIKIS<<EOF" >> $GITHUB_OUTPUT
           echo "$WIKIS_JSON" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "Contenido de WIKIS: $WIKIS_JSON"
 
       - name: Checkout Wikis
         run: |
@@ -42,10 +58,13 @@ jobs:
             name=$(echo "$wiki" | jq -r '.name' | tr ' ' '-')
             url=$(echo "$wiki" | jq -r '.url')
             echo "🔄 Clonando $name desde $url"
-            git clone "$url" "wikis/${name}" --depth 1 --single-branch --quiet || true
+            if ! git clone "$url" "wikis/${name}" --depth 1 --single-branch --quiet; then
+              echo "❌ Falló al clonar $name"
+              exit 1
+            fi
           done
-          echo "Listado de directorios en wikis:"
-          ls -la wikis
+          echo "Directorios en wikis:"
+          ls -la wikis/
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -56,20 +75,23 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
-          echo "Listado de archivos en wikis/ antes de procesar:"
-          ls -R wikis/
+          echo "Procesando wikis..."
           
-          # Procesar todas las wikis: recorre cada directorio dentro de "wikis" (excepto el propio "wikis")
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
             mkdir -p "_wikis/${clean_name}"
             
-            # Copiar archivos Markdown (ajusta -maxdepth si es necesario)
-            find "$wiki_dir" -maxdepth 2 -type f -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
+            echo "Copiando .md de $wiki_dir a _wikis/${clean_name}"
+            find "$wiki_dir" -type f -name "*.md" -exec cp -v {} "_wikis/${clean_name}/" \;
             
-            echo "Archivos copiados en _wikis/${clean_name}:"
-            ls -R "_wikis/${clean_name}"
+            # Verifica si hay archivos copiados
+            if [ -z "$(ls -A "_wikis/${clean_name}")" ]; then
+              echo "⚠️ No se copiaron archivos .md en $wiki_dir"
+            else
+              echo "✅ Archivos en _wikis/${clean_name}:"
+              ls "_wikis/${clean_name}"
+            fi
             
             for file in _wikis/"${clean_name}"/*.md; do
               if head -n 1 "$file" | grep -q "^---"; then
@@ -86,14 +108,23 @@ jobs:
             done
           done
           
-          echo "Listado final de archivos en _wikis/:"
-          ls -R _wikis/
+          echo "Estructura final de _wikis:"
+          tree _wikis/
 
       - name: Build Jekyll site
         env:
           JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp -r _wikis/* _wiki/
+          # Crear directorio _wiki si no existe
+          mkdir -p _wiki
+          
+          # Copiar solo si hay archivos en _wikis
+          if [ -n "$(ls -A _wikis/)" ]; then
+            cp -r _wikis/* _wiki/
+          else
+            echo "⚠️ _wikis está vacío. No se copian archivos."
+          fi
+          
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
