@@ -17,10 +17,10 @@ title: "Inicio"
 
 ## 📚 Wikis Integradas
 
-{% assign grouped_wikis = site.wiki | group_by: "wiki_source" %}
+{% assign grouped_wikis = site.wiki | group_by: "wiki_name" %}
 
 {% for wiki_group in grouped_wikis %}
-### {{ wiki_group.name | replace: "-", " " | capitalize }}
+### {{ wiki_group.name }}
 {% for page in wiki_group.items %}
 - [{{ page.title }}]({{ page.url | relative_url }})
 {% endfor %}

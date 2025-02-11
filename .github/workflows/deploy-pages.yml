@@ -72,12 +72,15 @@ jobs:
 
             # Recorrer cada archivo Markdown para inyectar el front matter
             for file in _wikis/"${clean_name}"/*.md; do
-              # Opcional: si deseas evitar duplicar front matter en archivos que ya lo tengan, podrías chequear:
+              # Opcional: si el archivo ya tiene front matter se omite la inyección.
               if head -n 1 "$file" | grep -q "^---"; then
                 echo "El archivo $file ya tiene front matter, se omite inyección."
               else
-                # Crear el bloque de front matter con printf (usa saltos de línea correctamente)
-                frontmatter=$(printf -- '---\nlayout: cayman\ntitle: "%s"\nwiki_source: "%s"\n---\n\n' "$wiki_name" "$clean_name")
+                # Crear el bloque de front matter con printf, inyectando:
+                # - title: el nombre original (wiki_name)
+                # - wiki_source: el nombre normalizado (clean_name)
+                # - wiki_name: el nombre original (wiki_name)
+                frontmatter=$(printf -- '---\nlayout: cayman\ntitle: "%s"\nwiki_source: "%s"\nwiki_name: "%s"\n---\n\n' "$wiki_name" "$clean_name" "$wiki_name")
                 # Escribir en un archivo temporal: primero el front matter y luego el contenido original
                 tmpfile="${file}.tmp"
                 echo "$frontmatter" > "$tmpfile"
