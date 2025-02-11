@@ -21,12 +21,14 @@ Explora los blogs disponibles sobre nuestras herramientas y metodologías.
   <tbody>
     {% for page in blogs %}
       {% if page.categories contains "blogs" %}
+        {% assign clean_name = page.title | replace: "Blog-", "" | replace: "Articulo-", "" | replace: "Tutorial-", "" %}
         <tr>
-          <td>{{ page.title | remove_first: "Blog-" | remove_first: "Articulo-" | remove_first: "Tutorial-" }}</td>
+          <td>{{ clean_name }}</td>
           <td>Blog relacionado con nuestras herramientas</td>
-          <td><a class="btn btn-primary" href="{{ page.url | relative_url }}">Ver más</a></td>
+          <td><a class="btn btn-primary text-dark" href="{{ page.url | relative_url }}">Ver más</a></td>
         </tr>
       {% endif %}
     {% endfor %}
   </tbody>
 </table>
+
