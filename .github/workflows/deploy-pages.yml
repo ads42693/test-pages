@@ -96,7 +96,11 @@ jobs:
         env:
           JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp -r _wikis/* _wiki/
+          if compgen -G "_wikis/*" > /dev/null; then
+            cp -r _wikis/* _wiki/
+          else
+            echo "No se encontraron archivos en _wikis para copiar."
+          fi
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
