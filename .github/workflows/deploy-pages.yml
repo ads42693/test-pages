@@ -135,9 +135,9 @@ jobs:
           fi
           # 📌 Aplicar estilos personalizados correctamente
           mkdir -p _wiki/assets/css
-          echo -e "body .btn[href*='github'] { display: none !important; }" > _wiki/assets/css/custom.css
+          echo -e "body a.btn[href*='github.com'] { display: none !important; visibility: hidden !important; }" > _wiki/assets/css/custom.css
           echo "✅ Estilos personalizados añadidos correctamente."
-          
+        
           bundle exec jekyll build --config _config.yml
 
       - name: Upload artifact
