@@ -105,7 +105,7 @@ jobs:
 
                   frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$clean_title" "$clean_name" "$category")
 
-                  navigation=$(printf -- '**[🏠 Volver al inicio](%s/) | [📖 Blogs](%s/blogs/) | [📑 Artículos](%s/articulos/) | [🎓 Tutoriales](%s/tutoriales/)**\n\n---\n' \
+                  navigation=$(printf -- '[🏠 Volver al inicio](%s/) | [📖 Blogs](%s/blogs/) | [📑 Artículos](%s/articulos/) | [🎓 Tutoriales](%s/tutoriales/)\n\n---\n' \
                       "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}")
 
                   tmpfile="${file}.tmp"

@@ -6,6 +6,8 @@ title: "Tutoriales"
 # 🎓 Tutoriales
 
 [⬅ Volver al inicio]({{ site.baseurl }}/)
+[🏠 Volver al inicio]({{ site.baseurl }}/) | [📖 Blogs]({{ site.baseurl }}/blogs/) | [📑 Artículos]({{ site.baseurl }}/articulos/) | [🎓 Tutoriales]({{ site.baseurl }}/tutoriales/)
+
 
 Explora los tutoriales detallados disponibles.
 
