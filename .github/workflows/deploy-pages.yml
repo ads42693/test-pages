@@ -69,6 +69,18 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
+          mkdir -p _wiki/assets/css
+
+          # Definir y aplicar estilos CSS para ocultar el botón "View on GitHub"
+          cat <<EOF > _wiki/assets/css/custom.css
+          /* Ocultar botón View on GitHub en GitHub Pages */
+          body a[href*="github.com"][aria-label*="View the project on GitHub"] {
+              display: none !important;
+              visibility: hidden !important;
+          }
+          EOF
+          echo "✅ Estilos personalizados añadidos correctamente."
+
           echo "📂 Listado de archivos en wikis/ antes de procesar:"
           ls -R wikis/ || echo "⚠️ No hay archivos en wikis"
 
@@ -103,17 +115,18 @@ jobs:
 
                   echo "📝 Asignando categoría '$category' a '$base_name' con título '$clean_title'"
 
-                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\n---\n\n' "$clean_title" "$clean_name" "$category")
+                  frontmatter=$(printf -- '---\nlayout: default\ntitle: "%s"\nwiki_source: "%s"\ncategories: ["%s"]\ncustom_css: "/assets/css/custom.css"\n---\n\n' "$clean_title" "$clean_name" "$category")
 
                   navigation=$(printf -- '[🏠 Volver al inicio](%s/) | [📖 Blogs](%s/blogs/) | [📑 Artículos](%s/articulos/) | [🎓 Tutoriales](%s/tutoriales/)\n\n---\n' \
                       "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}" "{{ site.baseurl }}")
 
                   tmpfile="${file}.tmp"
                   echo "$frontmatter" > "$tmpfile"
+                  echo '<link rel="stylesheet" type="text/css" href="/assets/css/custom.css">' >> "$tmpfile"
                   echo "$navigation" >> "$tmpfile"
                   cat "$file" >> "$tmpfile"
                   mv "$tmpfile" "$file"
-                  echo "✍️ Front matter inyectado en $file (Categoría: $category) con navegación."
+                  echo "✍️ Front matter inyectado en $file (Categoría: $category) con navegación y CSS."
                 fi
               fi
             done
@@ -121,7 +134,6 @@ jobs:
 
           echo "📂 Estructura final de _wikis:"
           tree _wikis/ || echo "⚠️ No se generó _wikis/"
-
 
       - name: Build Jekyll site
         env:
