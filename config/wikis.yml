@@ -1,3 +1,5 @@
 wikis:
+  - name: "Local-Wiki"
+    url: "https://github.com/ads42693/test-pages.wiki.git"
   - name: "skills-wiki"
     url: "https://github.com/ads42693/skills-github-pages.wiki.git"
