@@ -56,25 +56,38 @@ jobs:
       - name: Process Wikis
         run: |
           mkdir -p _wikis
-          
-          # Procesar todas las wikis
+
+          # Procesar todas las wikis: recorre cada directorio dentro de "wikis" (excepto el propio "wikis")
           find wikis -maxdepth 1 -type d -not -name "wikis" | while read -r wiki_dir; do
             wiki_name=$(basename "$wiki_dir")
             
-            # Normalizar nombres
+            # Normalizar nombres: convertir espacios a guiones y pasar a minúsculas
             clean_name=$(echo "$wiki_name" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
             
-            # Copiar y procesar archivos
+            # Crear directorio de destino para la wiki
             mkdir -p "_wikis/${clean_name}"
-            find "$wiki_dir" -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
             
-            # Inyectar front matter
-            find "_wikis/${clean_name}" -name "*.md" -exec sh -c '
-              file="$1"
-              wiki_source="$2"
-              printf "---\nlayout: cayman\ntitle: \"Página Wiki\"\nwiki_source: \"%s\"\n---\n" "$wiki_source" | cat - "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-            ' _ {} "$clean_name" \;
+            # Copiar todos los archivos Markdown a la carpeta correspondiente
+            find "$wiki_dir" -name "*.md" -exec cp {} "_wikis/${clean_name}/" \;
+
+            # Recorrer cada archivo Markdown para inyectar el front matter
+            for file in _wikis/"${clean_name}"/*.md; do
+              # Opcional: si deseas evitar duplicar front matter en archivos que ya lo tengan, podrías chequear:
+              if head -n 1 "$file" | grep -q "^---"; then
+                echo "El archivo $file ya tiene front matter, se omite inyección."
+              else
+                # Crear el bloque de front matter con printf (usa saltos de línea correctamente)
+                frontmatter=$(printf '---\nlayout: cayman\ntitle: "Página Wiki"\nwiki_source: "%s"\n---\n\n' "$clean_name")
+                # Escribir en un archivo temporal: primero el front matter y luego el contenido original
+                tmpfile="${file}.tmp"
+                echo "$frontmatter" > "$tmpfile"
+                cat "$file" >> "$tmpfile"
+                mv "$tmpfile" "$file"
+                echo "Front matter inyectado en $file"
+              fi
+            done
           done
+
 
       - name: Build Jekyll site
         env:
