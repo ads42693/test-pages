@@ -8,17 +8,17 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write  # Permiso para comentar
+      pull-requests: write
       contents: read
 
     steps:
-      # Paso 1: Checkout completo del histórico
+      # Paso 1: Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Paso 2: Obtener diferencias del PR
+      # Paso 2: Obtener diferencias
       - name: Get PR Diff
         id: get-diff
         run: |
@@ -27,34 +27,35 @@ jobs:
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
 
-      # Paso 3: Configuración de IA Local
+      # Paso 3: Ejecutar PR Agent (¡Este paso ya publica el comentario automáticamente!)
       - name: Run AI Analysis
         uses: Codium-ai/pr-agent@main
         env:
           OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"
-          PR_AGENT_MODEL: "ollama/codellama:7b"  # Formato requerido
+          PR_AGENT_MODEL: "ollama/codellama:7b"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
-          AI_TIMEOUT: "300"  # Tiempo extra para modelos locales
         with:
           mode: "review"
-          response: |
-            Eres un ingeniero DevOps senior. Analiza TODOS los cambios:
-            1. Revisa buenas prácticas de codificación
-            2. Detecta errores de seguridad
-            3. Sugiere optimizaciones técnicas
-            4. Entrega feedback en español
 
-      # Paso 4: Publicar feedback (opcional)
-      - name: Post Comment
+      # Paso 4 (Opcional): Filtrado SIN usar archivos
+      - name: Filter Feedback
+        id: filter-feedback
+        run: |
+          # PR Agent guarda el feedback en $FEEDBACK, filtramos directamente
+          FILTERED=$(echo "$FEEDBACK" | grep -v "Consider adding comments")
+          echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
+
+      # Paso 5 (Opcional): Publicar comentario filtrado
+      - name: Post Filtered Comment
         uses: actions/github-script@v6
-        if: always()  # Publica incluso si fallan otros pasos
+        if: always()
         with:
           script: |
-            const feedback = fs.readFileSync('filtered_feedback.txt', 'utf8');
+            const feedback = "${{ steps.filter-feedback.outputs.FILTERED_FEEDBACK }}";
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `**Revisión IA (Español):**\n\n${feedback}`
+              body: `**Revisión IA (Filtrada):**\n\n${feedback}`
             });
