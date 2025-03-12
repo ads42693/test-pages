@@ -2,25 +2,30 @@ name: Local AI Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize]  # Se activa al crear o actualizar el PR
+    types: [opened, synchronize]
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
     steps:
-      # Paso 1: Obtener el código del PR
+      # Paso 1: Checkout completo (incluyendo todos los commits)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0  # Necesario para el diff
+          fetch-depth: 0  # ¡Clave! Trae toda la historia de commits
 
-      # Paso 2: Obtener diferencias del PR
+      # Paso 2: Obtener SHAs correctos desde el contexto del PR
       - name: Get PR Diff
         id: get-diff
         run: |
           BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          
+          # Verificar que los commits existen
+          git cat-file -e $BASE_SHA || echo "Base SHA no existe"
+          git cat-file -e $HEAD_SHA || echo "Head SHA no existe"
+          
+          # Generar diff
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
 
