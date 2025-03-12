@@ -1,4 +1,4 @@
-name: Local AI Code Review
+name: Revisión IA Completa
 
 on:
   pull_request:
@@ -7,52 +7,54 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # Permiso para comentar
+      contents: read
+
     steps:
-      # Paso 1: Checkout completo (incluyendo todos los commits)
+      # Paso 1: Checkout completo del histórico
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # ¡Clave! Trae toda la historia de commits
+          fetch-depth: 0
 
-      # Paso 2: Obtener SHAs correctos desde el contexto del PR
+      # Paso 2: Obtener diferencias del PR
       - name: Get PR Diff
         id: get-diff
         run: |
           BASE_SHA=${{ github.event.pull_request.base.sha }}
           HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          
-          # Verificar que los commits existen
-          git cat-file -e $BASE_SHA || echo "Base SHA no existe"
-          git cat-file -e $HEAD_SHA || echo "Head SHA no existe"
-          
-          # Generar diff
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
-          
-      - name: Debug Commits
-        run: |
-            echo "BASE_SHA: ${{ github.event.pull_request.base.sha }}"
-            echo "HEAD_SHA: ${{ github.event.pull_request.head.sha }}"
-            git log --oneline --all  # Listar todos los commits
 
-      # Paso 3: Ejecutar PR Agent contra tu Ollama local
+      # Paso 3: Configuración de IA Local
       - name: Run AI Analysis
         uses: Codium-ai/pr-agent@main
         env:
-          OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  # URL de tu ngrok
-          PR_AGENT_MODEL: "codellama:7b"
+          OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"
+          PR_AGENT_MODEL: "ollama/codellama:7b"  # Formato requerido
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DIFF: ${{ steps.get-diff.outputs.DIFF }}  # Pasar el diff como variable
+          DIFF: ${{ steps.get-diff.outputs.DIFF }}
+          AI_TIMEOUT: "300"  # Tiempo extra para modelos locales
         with:
           mode: "review"
           response: |
-            Eres un ingeniero DevOps. Analiza este código y:
-            1. Verifica buenas prácticas en Docker/Terraform
-            2. Detecta configuraciones inseguras en AWS
-            3. Sugiere optimizaciones de costos
+            Eres un ingeniero DevOps senior. Analiza TODOS los cambios:
+            1. Revisa buenas prácticas de codificación
+            2. Detecta errores de seguridad
+            3. Sugiere optimizaciones técnicas
+            4. Entrega feedback en español
 
-      # Paso 4 (Opcional): Post-procesamiento del feedback
-      - name: Filter Feedback
-        run: |
-          # Eliminar sugerencias genéricas con grep
-          echo "$FEEDBACK" | grep -v "Consider adding comments" > filtered_feedback.txt
+      # Paso 4: Publicar feedback (opcional)
+      - name: Post Comment
+        uses: actions/github-script@v6
+        if: always()  # Publica incluso si fallan otros pasos
+        with:
+          script: |
+            const feedback = fs.readFileSync('filtered_feedback.txt', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `**Revisión IA (Español):**\n\n${feedback}`
+            });
