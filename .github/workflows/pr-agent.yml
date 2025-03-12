@@ -1,0 +1,47 @@
+name: Local AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]  # Se activa al crear o actualizar el PR
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      # Paso 1: Obtener el código del PR
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0  # Necesario para el diff
+
+      # Paso 2: Obtener diferencias del PR
+      - name: Get PR Diff
+        id: get-diff
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.sha }}
+          git diff $BASE_SHA $HEAD_SHA > diff.txt
+          echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
+
+      # Paso 3: Ejecutar PR Agent contra tu Ollama local
+      - name: Run AI Analysis
+        uses: Codium-ai/pr-agent@main
+        env:
+          OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  # URL de tu ngrok
+          PR_AGENT_MODEL: "codellama:7b"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIFF: ${{ steps.get-diff.outputs.DIFF }}  # Pasar el diff como variable
+        with:
+          mode: "review"
+          response: |
+            Eres un ingeniero DevOps. Analiza este código y:
+            1. Verifica buenas prácticas en Docker/Terraform
+            2. Detecta configuraciones inseguras en AWS
+            3. Sugiere optimizaciones de costos
+
+      # Paso 4 (Opcional): Post-procesamiento del feedback
+      - name: Filter Feedback
+        run: |
+          # Eliminar sugerencias genéricas con grep
+          echo "$FEEDBACK" | grep -v "Consider adding comments" > filtered_feedback.txt

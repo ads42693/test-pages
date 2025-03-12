@@ -15,9 +15,6 @@ docker-compose.override.yml
 docker-compose.yml
 Dockerfile
 
-# Archivos de configuración de GitHub Actions
-.github/
-
 # Archivos de configuración de VSCode
 .vscode/
 
