@@ -28,6 +28,12 @@ jobs:
           # Generar diff
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
+          
+      - name: Debug Commits
+        run: |
+            echo "BASE_SHA: ${{ github.event.pull_request.base.sha }}"
+            echo "HEAD_SHA: ${{ github.event.pull_request.head.sha }}"
+            git log --oneline --all  # Listar todos los commits
 
       # Paso 3: Ejecutar PR Agent contra tu Ollama local
       - name: Run AI Analysis
