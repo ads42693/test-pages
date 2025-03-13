@@ -1,13 +1,3 @@
-[config]
-model_provider = "ollama"
-response_format = "markdown"
-
-[ollama]
-api_base = "${OLLAMA_API_BASE}"
-model = "codellama:7b"
-headers = { "Content-Type" = "application/json" }
-stream = false
-
 [pr_reviewer]
 enable_auto_review = true
 auto_review_threshold = 500
