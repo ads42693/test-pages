@@ -1,24 +1,33 @@
-name: Revisión Automática IA
+name: Revisión IA Completa
 
 on:
   pull_request:
-    types: [opened, synchronize]  # Se activa al crear/actualizar PR
+    types: [opened, synchronize]
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write  # Permiso para comentar
+      pull-requests: write
       contents: read
 
     steps:
-      # Paso 1: Checkout del código con histórico completo
-      - name: Checkout Repository
+      # Paso 1: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para los diffs
+          fetch-depth: 0
 
-      # Paso 2: Ejecutar PR Agent con modelo local
+      # Paso 2: Obtener diferencias
+      - name: Get PR Diff
+        id: get-diff
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          git diff $BASE_SHA $HEAD_SHA > diff.txt
+          echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
+
+      # Paso 3: Ejecutar PR Agent (¡Este paso ya publica el comentario automáticamente!)
       - name: Run AI Review
         uses: Codium-ai/pr-agent@main
         env:
