@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write  # Permiso explícito requerido
+  pull-requests: write
 
 jobs:
   code_review:
@@ -17,7 +17,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}  # Obtener commit correcto
 
       - name: Setup environment
         run: |
@@ -26,47 +25,49 @@ jobs:
 
       - name: Get PR Diff
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
+          git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
+
+      - name: Test Ollama connection
+        env:
+          OLLAMA_ENDPOINT: ${{ secrets.OLLAMA_API_BASE }}/api/tags
+        run: |
+          curl -s "$OLLAMA_ENDPOINT" | jq .models[].name
 
       - name: Generate review with Ollama
         id: analyze
         env:
           OLLAMA_ENDPOINT: ${{ secrets.OLLAMA_API_BASE }}/api/generate
         run: |
-          # Sanitizar diff para JSON
-          DIFF_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/$/\\n/' pr_diff.txt | tr -d '\n')
+          DIFF_CONTENT=$(cat pr_diff.txt | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\$\$/g')
           
-          RESPONSE=$(curl -f -s -X POST "$OLLAMA_ENDPOINT" \
+          RESPONSE=$(curl -s -X POST "$OLLAMA_ENDPOINT" \
             -H "Content-Type: application/json" \
             -d @- <<EOF
           {
             "model": "codellama:7b",
-            "prompt": "Revisar código. Formato markdown:\\n$(echo "$DIFF_CONTENT" | head -c 10000)",
+            "prompt": "Revisa este código:\\n$DIFF_CONTENT\\n\\nSugerencias en markdown:",
             "stream": false,
             "options": {"temperature": 0.2}
           }
           EOF
           ) || echo "Ollama_error=true" >> $GITHUB_ENV
           
-          if [ -z "$RESPONSE" ]; then
-            echo "suggestions=Error generando revisión" >> $GITHUB_ENV
-          else
-            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed 's/"/\\"/g; s/\$/\$\$/g')
+          if [ $(echo "$RESPONSE" | jq 'has("response")') == "true" ]; then
+            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response')
             echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
+          else
+            echo "suggestions=🚨 Error en la respuesta del modelo. Verificar: \n1. Modelo instalado\n2. Conexión con Ollama\n3. Tamaño del diff" >> $GITHUB_ENV
           fi
 
       - name: Post review as comment
-        if: env.suggestions != '' && !contains(env.suggestions, 'Ollama_error')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          JSON_PAYLOAD=$(jq -n \
-            --arg body "🔍 **Revisión Automática**\n\n${{ env.suggestions }}\n\n_Generado por modelo local_" \
-            '{"body": $body}')
+          COMMENT=$(echo -e "${{ env.suggestions }}")
           
           curl -s -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            -d "$JSON_PAYLOAD"
+            -d "$(jq -n --arg body "$COMMENT" '{"body":$body}')"
