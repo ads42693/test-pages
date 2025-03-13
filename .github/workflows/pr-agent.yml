@@ -11,33 +11,12 @@ jobs:
       pull-requests: write
       contents: read
 
-    env:
-      # Para modelos locales con Ollama: 
-      # No se necesita clave API, por lo que se asigna vacío para evitar errores.
-      OPENAI_KEY: ""
-      # URL de tu endpoint local expuesto vía ngrok
-      OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  
-      # Especifica el modelo que deseas usar en Ollama
-      PR_AGENT_MODEL: "ollama/codellama:13b"
-
-      # Configuraciones automáticas para Qodo Merge / PR-Agent
-      github_action_config.auto_review: "true"
-      github_action_config.auto_describe: "true"
-      github_action_config.auto_improve: "true"
-      github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "review_requested"]'
-      
-      # Instrucciones extra y configuración de idioma (ajústalo según tus necesidades)
-      pr_reviewer.extra_instructions: "Enfócate en la calidad y estilo del código. Ignora archivos de prueba."
-      response_language: "es-ES"
-
     steps:
-      # Paso 1: Checkout del repositorio
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Paso 2: Obtener el diff del PR y codificarlo en base64
       - name: Get PR Diff
         id: get-diff
         run: |
@@ -46,19 +25,17 @@ jobs:
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
 
-      # Paso 3: Ejecutar PR-Agent utilizando tu modelo local vía ngrok
       - name: Run AI Review
         id: ai-review
         uses: Codium-ai/pr-agent@main
         env:
+          # Solo dejamos el GIT_TOKEN si es necesario; el resto se lee desde .pr_agent.toml
           GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
           AI_TIMEOUT: "300"
         with:
           mode: "review"
-        # Se espera que este paso genere el output "feedback".
 
-      # Paso 4: Filtrar el feedback recibido (se eliminan mensajes de log no deseados)
       - name: Filter Feedback
         id: filter-feedback
         run: |
@@ -71,7 +48,6 @@ jobs:
           fi
           echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
 
-      # Paso 5: Publicar el comentario con el feedback filtrado en el PR
       - name: Post Filtered Comment
         uses: actions/github-script@v6
         with:
