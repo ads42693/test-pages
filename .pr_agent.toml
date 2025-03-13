@@ -1,5 +1,4 @@
 [config]
-pr_agent_version = "0.2.4"
 model_provider = "ollama"
 response_format = "markdown"
 
