@@ -29,10 +29,9 @@ jobs:
       - name: Run Code Review
         env:
           OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
-          OLLAMA_MODEL: "codellama:7b"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Requerido por PR-Agent
         run: |
           pr-agent review \
-            --config-file .pr_agent.toml \
-            --git-provider github \
-            --pr_id ${{ github.event.pull_request.number }} \
-            --max_cost 0  # Desactiva límites económicos
+            --pr_url="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}" \
+            --config_file=".pr_agent.toml" \
+            --git_provider="github"

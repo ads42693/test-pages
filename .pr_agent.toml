@@ -3,9 +3,8 @@ model_provider = "ollama"
 response_format = "markdown"
 temperature = 0.2
 max_tokens = 8000
-
-# Nuevo parámetro requerido (según docs oficiales)
 pr_agent_version = "0.2.4"  # Versión instalada en el workflow
+tool_name = "pr-agent"
 
 [ollama]
 api_base = "https://c9ad-179-6-169-49.ngrok-free.app"  # Tu URL de Ngrok
