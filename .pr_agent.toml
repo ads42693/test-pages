@@ -3,7 +3,7 @@ model_provider = "ollama"
 response_format = "markdown"
 
 [ollama]
-api_base = "https://c9ad-179-6-169-49.ngrok-free.app"
+api_base = "${OLLAMA_API_BASE}"  # Se inyecta desde la variable de entorno (por ejemplo, tu URL de ngrok)
 model = "codellama:7b"
 headers = { "Content-Type" = "application/json" }
 stream = false
@@ -18,3 +18,6 @@ Eres un experto en desarrollo seguro:
 - Verifica principios SOLID
 - Aplica estándares PEP8
 """
+
+[github]
+user_token = "${GITHUB_TOKEN}"  # Se usará el token de GitHub proporcionado vía environment
