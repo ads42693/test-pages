@@ -30,53 +30,56 @@ jobs:
         env:
           OLLAMA_URL: ${{ secrets.OLLAMA_ENDPOINT }}
         run: |
-          # Configurar shell para manejo estricto de errores
           set -euo pipefail
           
-          # 1. Verificar existencia del diff
+          # 1. Verificar diff
           if [ ! -f pr_diff.txt ] || [ ! -s pr_diff.txt ]; then
-            echo "❌ Error: pr_diff.txt no existe o está vacío"
-            exit 1
-          fi
-      
-          # 2. Sanitizar y limitar diff (método robusto)
-          SANITIZED_DIFF=$(head -c 15000 pr_diff.txt | LC_ALL=C sed -e 's/[^[:alnum:] áéíóúÁÉÍÓÚñÑ_#@¿?¡!]/ /g' -e 's/\\/ /g')
-      
-          # 3. Construir prompt con encoding explícito
-          PROMPT=$(cat <<-EOF | iconv -t ASCII//TRANSLIT
-          Revisión de código - Requisitos:
-          1. Priorizar seguridad (OWASP Top 10)
-          2. Verificar formato PEP8
-          3. Aplicar principios SOLID
-      
-          Código a analizar:
-          ${SANITIZED_DIFF}
-      
-          Formato requerido:
-          - Usar guiones para listas
-          - Código entre backticks
-          - Máximo 3 sugerencias
-          EOF
-          )
-      
-          # 4. Llamar a Ollama con timeout
-          RESPONSE=$(timeout 120 curl -s -X POST "$OLLAMA_URL/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "{\"model\":\"codellama:7b\",\"prompt\":\"$PROMPT\",\"stream\":false}") || {
-              echo "⏰ Timeout en conexión con Ollama"
-              exit 0  # No fallar el workflow completo
-            }
-      
-          # 5. Validar respuesta
-          if ! SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed 's/[“”‘’]/"/g'); then
-            echo "::warning::Error procesando respuesta JSON"
-            echo "suggestions=🚨 Error técnico. Revisar logs" >> $GITHUB_ENV
+            echo "❌ Error: No hay diff para analizar"
             exit 0
           fi
       
-          # 6. Limitar longitud del comentario
-          TRUNCATED_SUGGESTIONS=$(echo "$SUGGESTIONS" | head -c 4000)
-          echo "suggestions=$TRUNCATED_SUGGESTIONS" >> $GITHUB_ENV
+          # 2. Sanitización robusta (sin iconv)
+          SANITIZED_DIFF=$(head -c 15000 pr_diff.txt | \
+            LC_ALL=C sed -e 's/[^[:print:]]/ /g' \
+            -e 's/[áä]/a/g; s/[éë]/e/g; s/[íï]/i/g; s/[óö]/o/g; s/[úü]/u/g' \
+            -e 's/[ÁÄ]/A/g; s/[ÉË]/E/g; s/[ÍÏ]/I/g; s/[ÓÖ]/O/g; s/[ÚÜ]/U/g' \
+            -e 's/ñ/n/g; s/Ñ/N/g' \
+            -e 's/[^a-zA-Z0-9 ¿?¡!@#%^&+=/<>,.:;_\(\)-]/ /g')
+      
+          # 3. Construir prompt seguro
+          PROMPT=$(cat <<-EOF
+          Instrucciones de revisión:
+          1. Priorizar OWASP Top 10
+          2. Verificar PEP8
+          3. Aplicar SOLID
+      
+          Código:
+          \`\`\`
+          $SANITIZED_DIFF
+          \`\`\`
+      
+          Formato requerido:
+          - Máximo 3 sugerencias
+          - Usar guiones (-)
+          - Código entre backticks
+          EOF
+          )
+      
+          # 4. Llamar a Ollama con manejo de errores
+          set +e  # Desactivar parada por errores
+          RESPONSE=$(timeout 120 curl -s -X POST "$OLLAMA_URL/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "{\"model\":\"codellama:7b\",\"prompt\":\"$PROMPT\",\"stream\":false}")
+          set -e  # Reactivar manejo estricto
+      
+          # 5. Procesar respuesta
+          if [ -z "$RESPONSE" ]; then
+            echo "suggestions=🔴 Error: No se obtuvo respuesta del modelo" >> $GITHUB_ENV
+          else
+            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | \
+              sed 's/\x1b\[[0-9;]*m//g; s/[“”‘’]/"/g; s/\*/•/g')
+            echo "suggestions=${SUGGESTIONS:0:4000}" >> $GITHUB_ENV  # Limitar a 4000 caracteres
+          fi
 
       - name: Post review comment
         if: env.suggestions != ''
