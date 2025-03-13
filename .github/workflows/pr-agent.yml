@@ -12,21 +12,24 @@ jobs:
       contents: read
 
     env:
-      # Configuración para usar el modelo local expuesto por ngrok.
-      OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  # Cambia este valor por tu URL de ngrok
-      PR_AGENT_MODEL: "ollama/codellama:13b"                   # Ajusta el nombre del modelo según corresponda
-      
-      # Configuraciones para Qodo Merge / PR-Agent
+      # Para modelos locales con Ollama: 
+      # No se necesita clave API, por lo que se asigna vacío para evitar errores.
+      OPENAI_KEY: ""
+      # URL de tu endpoint local expuesto vía ngrok
+      OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  
+      # Especifica el modelo que deseas usar en Ollama
+      PR_AGENT_MODEL: "ollama/codellama:13b"
+
+      # Configuraciones automáticas para Qodo Merge / PR-Agent
       github_action_config.auto_review: "true"
       github_action_config.auto_describe: "true"
       github_action_config.auto_improve: "true"
       github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "review_requested"]'
       
-      # Instrucciones extra y parámetros de respuesta
+      # Instrucciones extra y configuración de idioma (ajústalo según tus necesidades)
       pr_reviewer.extra_instructions: "Enfócate en la calidad y estilo del código. Ignora archivos de prueba."
       response_language: "es-ES"
-      # Aquí podrías agregar configuraciones adicionales como ignorar archivos mediante glob o regex, si lo requieres.
-      
+
     steps:
       # Paso 1: Checkout del repositorio
       - name: Checkout repository
@@ -34,43 +37,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Paso 2: Obtener el diff del PR
+      # Paso 2: Obtener el diff del PR y codificarlo en base64
       - name: Get PR Diff
         id: get-diff
         run: |
           BASE_SHA=${{ github.event.pull_request.base.sha }}
           HEAD_SHA=${{ github.event.pull_request.head.sha }}
           git diff $BASE_SHA $HEAD_SHA > diff.txt
-          # Convertir el diff a base64 para pasarlo sin problemas
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
 
-      # Paso 3: Ejecutar el agente de IA (PR-Agent) utilizando el modelo local vía ngrok
+      # Paso 3: Ejecutar PR-Agent utilizando tu modelo local vía ngrok
       - name: Run AI Review
         id: ai-review
         uses: Codium-ai/pr-agent@main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
           AI_TIMEOUT: "300"
         with:
           mode: "review"
-        # Se espera que este paso exporte un output "feedback"
+        # Se espera que este paso genere el output "feedback".
 
-      # Paso 4: Filtrar el feedback recibido
+      # Paso 4: Filtrar el feedback recibido (se eliminan mensajes de log no deseados)
       - name: Filter Feedback
         id: filter-feedback
         run: |
           FEEDBACK="${{ steps.ai-review.outputs.feedback }}"
           echo "Feedback original:"
           echo "$FEEDBACK"
-          # Se eliminan líneas de log que no aporten al feedback
           FILTERED=$(echo "$FEEDBACK" | grep -v -E "Consider adding comments|Skipping action:|Applying repo settings|enable_custom_labels:" || true)
           if [ -z "$FILTERED" ]; then
             FILTERED="No se encontró feedback útil."
           fi
           echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
 
-      # Paso 5: Publicar el comentario con el feedback filtrado
+      # Paso 5: Publicar el comentario con el feedback filtrado en el PR
       - name: Post Filtered Comment
         uses: actions/github-script@v6
         with:
