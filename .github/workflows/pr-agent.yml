@@ -10,7 +10,11 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-
+    env:
+      # Variables de entorno para referencia (no se inyectan en el comando)
+      OPENAI_KEY: ""  # No se usa para modelos locales
+      OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"
+      PR_AGENT_MODEL: "ollama/codellama:13b"
     steps:
       - name: Post review command comment
         uses: actions/github-script@v6
@@ -20,5 +24,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: "@CodiumAI-Agent /review"
+              body: "@CodiumAI-Agent /review --model=ollama/codellama:13b --ollama_url=https://87a3-179-6-169-49.ngrok-free.app"
             });
