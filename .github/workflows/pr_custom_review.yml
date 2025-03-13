@@ -1,0 +1,71 @@
+
+name: Custom Code Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, "review_requested"]
+
+permissions:
+  pull-requests: write  # Permiso mínimo necesario
+
+jobs:
+  code_review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para el diff completo
+
+      - name: Setup dependencies
+        run: sudo apt-get install -y jq  # Para procesar JSON
+
+      - name: Get PR Diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff --unified=20 origin/${{ github.base_ref }}...HEAD > pr_diff.txt
+
+      - name: Generate security review
+        id: ollama_review
+        env:
+          OLLAMA_URL: ${{ secrets.OLLAMA_ENDPOINT }}  # Formato: http://tudominio:11434
+        run: |
+          # 1. Sanitizar y limitar diff
+          SANITIZED_DIFF=$(head -c 10000 pr_diff.txt | sed 's/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ_#@¿?¡!]/ /g')
+
+          # 2. Construir prompt con buenas prácticas
+          PROMPT=$(cat <<-EOF
+          Como experto en desarrollo seguro:
+          - Revisa OWASP Top 10 2023
+          - Verifica principios SOLID
+          - Aplica PEP8
+          
+          Analiza este código:
+          '''
+          $SANITIZED_DIFF
+          '''
+          
+          Devuelve 3 sugerencias usando:
+          - Guiones (-)
+          - Código entre backticks
+          - Máximo 200 palabras
+          EOF
+          )
+
+          # 3. Llamar a Ollama
+          RESPONSE=$(curl -s -X POST "$OLLAMA_URL/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "{\"model\":\"codellama:7b\",\"prompt\":\"$PROMPT\",\"stream\":false}")
+
+          # 4. Extraer y sanitizar respuesta
+          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed 's/\*/•/g; s/\x1b\[[0-9;]*m//g')
+          echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
+
+      - name: Post review comment
+        if: env.suggestions != ''
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d "{\"body\":\"🔍 **Revisión Automática**\n\n${{ env.suggestions }}\"}"
