@@ -1,0 +1,72 @@
+
+name: Custom Code Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, "review_requested"]
+
+jobs:
+  code_review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq gh
+
+      - name: Get PR Diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff --unified=20 origin/${{ github.base_ref }}...HEAD > pr_diff.txt
+
+      - name: Generate review with Ollama
+        id: analyze
+        env:
+          OLLAMA_ENDPOINT: ${{ secrets.OLLAMA_API_BASE }}/api/generate
+        run: |
+          RESPONSE=$(curl -s -X POST "$OLLAMA_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "model": "codellama:7b",
+            "prompt": "Como experto en seguridad y buenas prácticas:\n1. Revisa este código:\n$(sed 's/"/\\"/g' pr_diff.txt)\n2. Devuelve 3 sugerencias en markdown",
+            "stream": false,
+            "options": {"temperature": 0.2}
+          }
+          EOF
+          )
+          
+          # Extraer y sanitizar respuesta
+          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed 's/"/\\"/g; s/\$/\$\$/g')
+          
+          # Codificar para YAML
+          echo "suggestions<<EOF" >> $GITHUB_ENV
+          echo "$SUGGESTIONS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Post review as comment
+        if: env.suggestions != ''
+        env:
+          SUGGESTIONS: ${{ env.suggestions }}
+        run: |
+          COMMENT=$(cat <<EOF
+          🔍 **Revisión Automática (Local AI)**
+
+          ### Sugerencias de mejora:
+          ${SUGGESTIONS}
+
+          _Generado por [Ollama](https://ollama.ai) - Modelo: codellama:7b_
+          EOF
+          )
+          
+          # Publicar usando GitHub API
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d "$(jq -n --arg body "$COMMENT" '{"body":$body}')"

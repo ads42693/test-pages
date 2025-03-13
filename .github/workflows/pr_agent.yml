@@ -1,8 +1,7 @@
 name: PR-Agent Auto Review
 
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review, "review_requested"]
+  workflow_dispatch:
 
 jobs:
   pr_review:
