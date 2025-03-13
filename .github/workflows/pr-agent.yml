@@ -12,13 +12,13 @@ jobs:
       contents: read
 
     steps:
-      # Paso 1: Checkout
+      # Paso 1: Checkout del repositorio
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Paso 2: Obtener diferencias
+      # Paso 2: Obtener las diferencias (diff)
       - name: Get PR Diff
         id: get-diff
         run: |
@@ -27,7 +27,7 @@ jobs:
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
 
-      # Paso 3: Ejecutar PR Agent y capturar feedback
+      # Paso 3: Ejecutar el agente de IA y capturar el feedback
       - name: Run AI Review
         id: ai-review
         uses: Codium-ai/pr-agent@main
@@ -39,24 +39,27 @@ jobs:
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
         with:
           mode: "review"
-        # Se asume que esta acción exporta la salida en "feedback"
-      
-      # Paso 4: Filtrar el feedback recibido, eliminando líneas de log innecesarias
+        # Se asume que este paso exporta la salida "feedback"
+
+      # Paso 4: Filtrar el feedback recibido y asignar un fallback en caso de estar vacío
       - name: Filter Feedback
         id: filter-feedback
         run: |
           FEEDBACK="${{ steps.ai-review.outputs.feedback }}"
           echo "Feedback original:"
           echo "$FEEDBACK"
-          # Se filtran mensajes que no aporten al feedback, como logs de sincronización o configuración
+          # Se eliminan líneas de log no deseadas
           FILTERED=$(echo "$FEEDBACK" | grep -v -E "Consider adding comments|Skipping action:|Applying repo settings|enable_custom_labels:" || true)
           echo "Filtered feedback:"
           echo "$FILTERED"
+          # Si el resultado es vacío, se asigna un mensaje por defecto
+          if [ -z "$FILTERED" ]; then
+            FILTERED="No se encontró feedback útil."
+          fi
           echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
 
-      # Paso 5: Publicar comentario filtrado solo si hay contenido útil
+      # Paso 5: Publicar el comentario con el feedback filtrado (o mensaje por defecto)
       - name: Post Filtered Comment
-        if: steps.filter-feedback.outputs.FILTERED_FEEDBACK != ''
         uses: actions/github-script@v6
         with:
           script: |
