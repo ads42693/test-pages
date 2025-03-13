@@ -31,7 +31,7 @@ jobs:
       - name: Run AI Review
         uses: Codium-ai/pr-agent@main
         env:
-          OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  # URL de tu túnel ngrok
+          OLLAMA_URL: "https://fa0e-179-6-169-49.ngrok-free.app"  # URL de tu túnel ngrok
           PR_AGENT_MODEL: "ollama/codellama:13b"  # Modelo en español
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_TIMEOUT: "300"  # Tiempo extra para modelos grandes
