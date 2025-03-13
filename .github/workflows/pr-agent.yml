@@ -29,7 +29,7 @@ jobs:
       - name: Run Code Review
         env:
           OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
-          OLLAMA_MODEL: "codellama:7b-q4_K_M"
+          OLLAMA_MODEL: "codellama:7b"
         run: |
           pr-agent review \
             --config-file .pr_agent.toml \

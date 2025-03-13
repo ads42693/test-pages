@@ -1,8 +1,11 @@
 [config]
 model_provider = "ollama"
 response_format = "markdown"
-temperature = 0.2  # Controla la creatividad (0=preciso, 1=creativo)
-max_tokens = 8000   # Máximo tokens de salida
+temperature = 0.2
+max_tokens = 8000
+
+# Nuevo parámetro requerido (según docs oficiales)
+pr_agent_version = "0.2.4"  # Versión instalada en el workflow
 
 [ollama]
 api_base = "https://c9ad-179-6-169-49.ngrok-free.app"  # Tu URL de Ngrok
@@ -12,6 +15,8 @@ stream = false  # Respuestas completas (no streaming)
 
 [pr_reviewer]
 enable_auto_review = true
+auto_review_threshold = 500  # Líneas máximas para auto-revisión (requerido si enable_auto_review=true)
+chunk_size = 4000
 extra_instructions = """
 Eres un ingeniero senior especializado en:
 - Seguridad (OWASP Top 10 2023)
@@ -20,9 +25,8 @@ Eres un ingeniero senior especializado en:
 - Estándares internos de la empresa
 
 Revisa especialmente:
-1. Vulnerabilidades de inyección
-2. Manejo adecuado de errores
-3. Performance de consultas/operaciones
-4. Cumplimiento de convenciones de código
+1. Vulnerabilidades de inyección (SQLi, XSS, etc.)
+2. Error handling (try/except, logging)
+3. Performance (complejidad algorítmica, N+1 queries)
+4. PEP8 y convenciones del equipo
 """
-chunk_size = 4000  # Tokens por chunk de análisis
