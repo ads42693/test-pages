@@ -12,11 +12,20 @@ jobs:
       contents: read
 
     steps:
+      # Paso 1: Checkout del repositorio
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Paso 2: (Opcional) Listar archivos para confirmar que .pr_agent.toml se encuentra en la raíz
+      - name: List repository files (debug)
+        run: ls -la
+
+      - name: Show configuration file (debug)
+        run: cat .pr_agent.toml
+
+      # Paso 3: Obtener el diff del PR y codificarlo en base64
       - name: Get PR Diff
         id: get-diff
         run: |
@@ -25,17 +34,19 @@ jobs:
           git diff $BASE_SHA $HEAD_SHA > diff.txt
           echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
 
+      # Paso 4: Ejecutar PR-Agent; se le pasa la variable PR_AGENT_CONFIG para que cargue tu archivo
       - name: Run AI Review
         id: ai-review
         uses: Codium-ai/pr-agent@main
         env:
-          # Solo dejamos el GITHUB_TOKEN; la configuración del modelo y demás se carga desde .pr_agent.toml
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
           AI_TIMEOUT: "300"
+          PR_AGENT_CONFIG: ".pr_agent.toml"
         with:
           mode: "review"
 
+      # Paso 5: Filtrar el feedback recibido (se eliminan mensajes de log no deseados)
       - name: Filter Feedback
         id: filter-feedback
         run: |
@@ -48,6 +59,7 @@ jobs:
           fi
           echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
 
+      # Paso 6: Publicar el comentario con el feedback filtrado en el PR
       - name: Post Filtered Comment
         uses: actions/github-script@v6
         with:
