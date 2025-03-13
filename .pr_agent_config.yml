@@ -1,8 +1,0 @@
-pr_reviewer:
-  response_language: "es-ES"
-  use_patches: true
-  max_lines_to_analyze: 0
-  filter_files:
-    exclude_patterns: []
-  model: "ollama/codellama:13b"  # Modelo local
-  fallback_models: []            # Desactiva OpenAI
