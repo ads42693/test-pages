@@ -10,9 +10,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-    env:
-      OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"
-      PR_AGENT_MODEL: "ollama/codellama:13b"
+
     steps:
       - name: Post review command comment
         uses: actions/github-script@v6
