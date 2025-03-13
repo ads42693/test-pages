@@ -1,7 +1,23 @@
+[config]
+model_provider = "ollama"
+response_format = "markdown"
+# Deshabilitar totalmente OpenAI
+fallback_models = []  # ¡Importante! Eliminar modelos de respaldo
+
+[ollama]
+api_base = "${OLLAMA_API_BASE}"  # Usar variable de entorno
+model = "codellama:7b"
+headers = { "Content-Type" = "application/json" }
+stream = false
+temperature = 0.3
+request_timeout = 300  # 5 minutos para modelos locales
+
 [pr_reviewer]
 enable_auto_review = true
 auto_review_threshold = 500
 chunk_size = 4000
+# Forzar uso exclusivo de Ollama
+model = "ollama/codellama"
 extra_instructions = """
 Eres un experto en desarrollo seguro:
 - Revisa OWASP Top 10 2023
