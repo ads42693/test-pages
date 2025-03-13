@@ -1,31 +1,21 @@
 [config]
+pr_agent_version = "0.2.4"
 model_provider = "ollama"
 response_format = "markdown"
-temperature = 0.2
-max_tokens = 8000
-pr_agent_version = "0.2.4"  # Versión instalada en el workflow
-tool_name = "pr-agent"
 
 [ollama]
-api_base = "https://c9ad-179-6-169-49.ngrok-free.app"  # Tu URL de Ngrok
-model = "codellama:7b"  # Versión cuantizada para mejor performance
+api_base = "https://c9ad-179-6-169-49.ngrok-free.app"
+model = "codellama:7b"
 headers = { "Content-Type" = "application/json" }
-stream = false  # Respuestas completas (no streaming)
+stream = false
 
 [pr_reviewer]
 enable_auto_review = true
-auto_review_threshold = 500  # Líneas máximas para auto-revisión (requerido si enable_auto_review=true)
+auto_review_threshold = 500
 chunk_size = 4000
 extra_instructions = """
-Eres un ingeniero senior especializado en:
-- Seguridad (OWASP Top 10 2023)
-- Clean Code y principios SOLID
-- Mejores prácticas de Python
-- Estándares internos de la empresa
-
-Revisa especialmente:
-1. Vulnerabilidades de inyección (SQLi, XSS, etc.)
-2. Error handling (try/except, logging)
-3. Performance (complejidad algorítmica, N+1 queries)
-4. PEP8 y convenciones del equipo
+Eres un experto en desarrollo seguro:
+- Revisa OWASP Top 10 2023
+- Verifica principios SOLID
+- Aplica estándares PEP8
 """

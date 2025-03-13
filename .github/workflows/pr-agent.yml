@@ -29,9 +29,8 @@ jobs:
       - name: Run Code Review
         env:
           OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pr-agent \
+          pr-agent review \
             --pr_url="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}" \
-            --config_path=".pr_agent.toml" \
-            --git_provider="github" \
-            review
+            --config=".pr_agent.toml"
