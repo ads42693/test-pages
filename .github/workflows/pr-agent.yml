@@ -35,6 +35,7 @@ jobs:
           PR_AGENT_MODEL: "ollama/codellama:13b"  # Modelo en español
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_TIMEOUT: "300"  # Tiempo extra para modelos grandes
+          DIFF: ${{ steps.get-diff.outputs.DIFF }}
         with:
           mode: "review"  # Modo de revisión automática
 
