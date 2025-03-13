@@ -1,0 +1,28 @@
+[config]
+model_provider = "ollama"
+response_format = "markdown"
+temperature = 0.2  # Controla la creatividad (0=preciso, 1=creativo)
+max_tokens = 8000   # Máximo tokens de salida
+
+[ollama]
+api_base = "https://c9ad-179-6-169-49.ngrok-free.app"  # Tu URL de Ngrok
+model = "codellama:7b"  # Versión cuantizada para mejor performance
+headers = { "Content-Type" = "application/json" }
+stream = false  # Respuestas completas (no streaming)
+
+[pr_reviewer]
+enable_auto_review = true
+extra_instructions = """
+Eres un ingeniero senior especializado en:
+- Seguridad (OWASP Top 10 2023)
+- Clean Code y principios SOLID
+- Mejores prácticas de Python
+- Estándares internos de la empresa
+
+Revisa especialmente:
+1. Vulnerabilidades de inyección
+2. Manejo adecuado de errores
+3. Performance de consultas/operaciones
+4. Cumplimiento de convenciones de código
+"""
+chunk_size = 4000  # Tokens por chunk de análisis

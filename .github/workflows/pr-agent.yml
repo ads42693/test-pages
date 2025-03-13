@@ -1,50 +1,38 @@
-name: Code Review using Local Model
+name: PR-Agent Auto Review
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, ready_for_review]
 
 jobs:
-  code-review:
+  pr_review:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: read
+      pull-requests: write  # Permite postear comentarios
+      issues: write         # Opcional para crear issues
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Necesario para análisis completo del diff
 
-      - name: Get PR Diff
-        id: get-diff
-        run: |
-          BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          git diff $BASE_SHA $HEAD_SHA > diff.txt
-          # Puedes imprimir el diff para debug (opcional)
-          echo "Diff generado:"
-          cat diff.txt
-
-      - name: Send diff to Local Model via ngrok
-        id: run-local-model
-        run: |
-          # Envía el diff codificado en base64 a tu endpoint de revisión.
-          RESPONSE=$(curl -s -X POST "https://87a3-179-6-169-49.ngrok-free.app/review" \
-            -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$(cat diff.txt | base64 -w0)\"}")
-          echo "Respuesta del modelo: $RESPONSE"
-          echo "::set-output name=review_response::$RESPONSE"
-
-      - name: Post Code Review Comment
-        uses: actions/github-script@v6
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          script: |
-            const reviewResponse = "${{ steps.run-local-model.outputs.review_response }}";
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `**Revisión de Código (Agente Local):**\n\n${reviewResponse}`
-            });
+          python-version: "3.10"
+
+      - name: Install PR-Agent
+        run: pip install "pr-agent[ollama]==1.8.0"
+
+      - name: Run Code Review
+        env:
+          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
+          OLLAMA_MODEL: "codellama:7b-q4_K_M"
+        run: |
+          pr-agent review \
+            --config-file .pr_agent.toml \
+            --git-provider github \
+            --pr_id ${{ github.event.pull_request.number }} \
+            --max_cost 0  # Desactiva límites económicos
