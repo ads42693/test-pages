@@ -29,7 +29,7 @@ jobs:
         id: ai-review
         uses: Codium-ai/pr-agent@main
         env:
-          # Solo dejamos el GIT_TOKEN si es necesario; el resto se lee desde .pr_agent.toml
+          # Solo dejamos el GITHUB_TOKEN; la configuración del modelo y demás se carga desde .pr_agent.toml
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
           AI_TIMEOUT: "300"
