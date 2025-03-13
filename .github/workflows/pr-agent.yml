@@ -1,61 +1,30 @@
-name: Revisión IA Completa
+name: Revisión Automática IA
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize]  # Se activa al crear/actualizar PR
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: write  # Permiso para comentar
       contents: read
 
     steps:
-      # Paso 1: Checkout
-      - name: Checkout repository
+      # Paso 1: Checkout del código con histórico completo
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Necesario para los diffs
 
-      # Paso 2: Obtener diferencias
-      - name: Get PR Diff
-        id: get-diff
-        run: |
-          BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          git diff $BASE_SHA $HEAD_SHA > diff.txt
-          echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
-
-      # Paso 3: Ejecutar PR Agent (¡Este paso ya publica el comentario automáticamente!)
-      - name: Run AI Analysis
+      # Paso 2: Ejecutar PR Agent con modelo local
+      - name: Run AI Review
         uses: Codium-ai/pr-agent@main
         env:
-          OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"
-          PR_AGENT_MODEL: "ollama/codellama:7b"
+          OLLAMA_URL: "https://87a3-179-6-169-49.ngrok-free.app"  # URL de tu túnel ngrok
+          PR_AGENT_MODEL: "ollama/codellama:13b"  # Modelo en español
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DIFF: ${{ steps.get-diff.outputs.DIFF }}
+          AI_TIMEOUT: "300"  # Tiempo extra para modelos grandes
         with:
-          mode: "review"
-
-      # Paso 4 (Opcional): Filtrado SIN usar archivos
-      - name: Filter Feedback
-        id: filter-feedback
-        run: |
-          # PR Agent guarda el feedback en $FEEDBACK, filtramos directamente
-          FILTERED=$(echo "$FEEDBACK" | grep -v "Consider adding comments")
-          echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
-
-      # Paso 5 (Opcional): Publicar comentario filtrado
-      - name: Post Filtered Comment
-        uses: actions/github-script@v6
-        if: always()
-        with:
-          script: |
-            const feedback = "${{ steps.filter-feedback.outputs.FILTERED_FEEDBACK }}";
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `**Revisión IA (Filtrada):**\n\n${feedback}`
-            });
+          mode: "review"  # Modo de revisión automática
