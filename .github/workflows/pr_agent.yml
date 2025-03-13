@@ -23,10 +23,17 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Probar conexión Ollama
+        run: |
+          curl -X POST "${{ secrets.OLLAMA_API_BASE }}/api/generate" \
+          -H "Content-Type: application/json" \
+          -d '{"model": "codellama:7b", "prompt": "Hola GitHub Actions!"}'
+          
       - name: Run PR-Agent
         uses: qodo-ai/pr-agent@main
         env:
-          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
+          OLLAMA_API_BASE: "https://tunel-ngrok.ngrok-free.app"  # Tu URL pública
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CONFIG_FILE: "pr_agent.toml"  # Forzar uso de tu configuración
-          LITELLM_MODEL: "ollama/codellama"  # Modelo específico para LiteLLM
+          CONFIG_FILE: "pr_agent.toml"
+          LITELLM_MODEL: "ollama/codellama:7b"
+          PR_AGENT_DISABLE_OPENAI: "true"  # Variable mágica

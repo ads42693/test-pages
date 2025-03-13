@@ -1,17 +1,18 @@
 [config]
 model_provider = "ollama"
 response_format = "markdown"
-# ¡Deshabilitar totalmente modelos de respaldo!
-fallback_models = []  # Esto es clave
+# ¡Deshabilitar TODOS los fallbacks!
+fallback_models = []
+disable_fallback = true  # Parámetro crítico que falta
 
 [ollama]
-api_base = "${OLLAMA_API_BASE}"
-model = "codellama"  # Nombre exacto del modelo en Ollama (ver con `ollama list`)
+api_base = "http://localhost:11434"  # Usar directamente Ngrok
+model = "codellama:7b"  # Versión exacta
 headers = {"Content-Type": "application/json"}
 temperature = 0.1
-request_timeout = 600  # 10 minutos para modelos lentos
+request_timeout = 600
 
-# Bloquear explícitamente OpenAI
+# Bloquear OpenAI explícitamente
 [openai]
 enabled = false
 
