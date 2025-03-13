@@ -1,73 +1,24 @@
-name: Revisión IA Completa
+name: Trigger PR-Agent Command
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, reopened, synchronize]
 
 jobs:
-  analyze:
+  trigger-review:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read
 
     steps:
-      # Paso 1: Checkout del repositorio
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Paso 2: (Opcional) Listar archivos para confirmar que .pr_agent.toml se encuentra en la raíz
-      - name: List repository files (debug)
-        run: ls -la
-
-      - name: Show configuration file (debug)
-        run: cat .pr_agent.toml
-
-      # Paso 3: Obtener el diff del PR y codificarlo en base64
-      - name: Get PR Diff
-        id: get-diff
-        run: |
-          BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          git diff $BASE_SHA $HEAD_SHA > diff.txt
-          echo "DIFF=$(base64 -w0 diff.txt)" >> $GITHUB_OUTPUT
-
-      # Paso 4: Ejecutar PR-Agent; se le pasa la variable PR_AGENT_CONFIG para que cargue tu archivo
-      - name: Run AI Review
-        id: ai-review
-        uses: Codium-ai/pr-agent@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DIFF: ${{ steps.get-diff.outputs.DIFF }}
-          AI_TIMEOUT: "300"
-          PR_AGENT_CONFIG: ".pr_agent.toml"
-        with:
-          mode: "review"
-
-      # Paso 5: Filtrar el feedback recibido (se eliminan mensajes de log no deseados)
-      - name: Filter Feedback
-        id: filter-feedback
-        run: |
-          FEEDBACK="${{ steps.ai-review.outputs.feedback }}"
-          echo "Feedback original:"
-          echo "$FEEDBACK"
-          FILTERED=$(echo "$FEEDBACK" | grep -v -E "Consider adding comments|Skipping action:|Applying repo settings|enable_custom_labels:" || true)
-          if [ -z "$FILTERED" ]; then
-            FILTERED="No se encontró feedback útil."
-          fi
-          echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
-
-      # Paso 6: Publicar el comentario con el feedback filtrado en el PR
-      - name: Post Filtered Comment
+      - name: Post review command comment
         uses: actions/github-script@v6
         with:
           script: |
-            const feedback = "${{ steps.filter-feedback.outputs.FILTERED_FEEDBACK }}";
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `**Revisión IA (Filtrada):**\n\n${feedback}`
+              body: "@CodiumAI-Agent /review"
             });
