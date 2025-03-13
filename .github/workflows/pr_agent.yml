@@ -2,33 +2,29 @@ name: PR-Agent Auto Review
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, ready_for_review]
 
 jobs:
   pr_review:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: write  # Permite postear comentarios
-      issues: write         # Opcional para crear issues
+      contents: write
+      pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para análisis completo del diff
+          fetch-depth: 0 
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Install PR-Agent
-        run: pip install "pr-agent[ollama]==0.2.4"
-
-      - name: Run Code Review
+      - name: Run PR-Agent
+        uses: qodo-ai/pr-agent@main
         env:
-          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}  # Valor definido en GitHub Secrets
+          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pr-agent --pr_url="${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}" review --config_path=".pr_agent.toml"
