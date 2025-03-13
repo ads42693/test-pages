@@ -37,3 +37,25 @@ jobs:
           AI_TIMEOUT: "300"  # Tiempo extra para modelos grandes
         with:
           mode: "review"  # Modo de revisión automática
+
+      # Paso 4 (Opcional): Filtrado SIN usar archivos
+      - name: Filter Feedback
+        id: filter-feedback
+        run: |
+          # PR Agent guarda el feedback en $FEEDBACK, filtramos directamente
+          FILTERED=$(echo "$FEEDBACK" | grep -v "Consider adding comments")
+          echo "FILTERED_FEEDBACK=$FILTERED" >> $GITHUB_OUTPUT
+
+      # Paso 5 (Opcional): Publicar comentario filtrado
+      - name: Post Filtered Comment
+        uses: actions/github-script@v6
+        if: always()
+        with:
+          script: |
+            const feedback = "${{ steps.filter-feedback.outputs.FILTERED_FEEDBACK }}";
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `**Revisión IA (Filtrada):**\n\n${feedback}`
+            });
