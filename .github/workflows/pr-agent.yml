@@ -51,6 +51,7 @@ jobs:
         id: ai-review
         uses: Codium-ai/pr-agent@main
         env:
+          GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
           AI_TIMEOUT: "300"
         with:
