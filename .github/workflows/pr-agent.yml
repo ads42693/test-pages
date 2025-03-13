@@ -30,7 +30,7 @@ jobs:
         uses: Codium-ai/pr-agent@main
         env:
           # Solo dejamos el GIT_TOKEN si es necesario; el resto se lee desde .pr_agent.toml
-          GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIFF: ${{ steps.get-diff.outputs.DIFF }}
           AI_TIMEOUT: "300"
         with:
