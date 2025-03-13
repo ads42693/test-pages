@@ -1,0 +1,10 @@
+[config]
+model = "ollama/codellama:13b"
+fallback_models = ["ollama/codellama:13b"]
+custom_model_max_tokens = 128000
+duplicate_examples = true
+response_language = "es-ES"
+pr_reviewer.extra_instructions = "Enfócate en la calidad y estilo del código. Ignora archivos de prueba."
+
+[ollama]
+api_base = "https://87a3-179-6-169-49.ngrok-free.app"
