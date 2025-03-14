@@ -37,41 +37,36 @@ jobs:
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # Limpiar y formatear el diff
-          DIFF=$(head -n 50 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/"/\\"/g' -e 's/$/\\n/' | tr -d '\n')
+          # Limpiar y preparar el diff
+          DIFF=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/"/\\"/g' | tr -d '\n' | cut -c -2000)
           
-          # Construir JSON
+          # Construir payload
           JSON_PAYLOAD=$(jq -n \
             --arg model "codellama:7b-instruct" \
             --arg diff "$DIFF" \
             '{
               "model": $model,
-              "prompt": "Generar 3 sugerencias concisas (formato lista sin markdown):\nCódigo:\n```diff\n\($diff)\n```",
+              "prompt": "Generar 3 sugerencias técnicas concisas para este código (formato numerado):\n\($diff)",
               "stream": false,
               "options": {"temperature": 0.2}
             }')
 
+          # Obtener respuesta
           RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" -H "Content-Type: application/json" -d "$JSON_PAYLOAD")
+          echo "Raw API response: $RESPONSE"  # Debug
           
-          # Sanitizar respuesta
-          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | 
-            sed -e 's/"/\\"/g' -e 's/\n/<br>/g' -e 's/\r//g' |
-            tr -cd '\11\12\15\40-\176' | head -c 2000)
+          # Procesar y sanitizar
+          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response // "null"' | sed -e 's/"/\"/g' -e 's/\n/ /g' -e 's/\r/ /g' | head -n 5)
 
-          # Formatear correctamente para GitHub
-          echo "suggestions<<EOF" >> $GITHUB_ENV
-          echo "$SUGGESTIONS" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # Guardar en environment variable
+          echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
   
       - name: Post Comment
-        if: env.suggestions != ''
+        if: env.suggestions != 'null' && env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const comment = `🤖 **Revisión Automática**\n\n${process.env.suggestions
-              .replace(/<br>/g, '\n')
-              .replace(/(\d+\.)/g, '\n$1')}`;
-            
+            const comment = `🤖 **Revisión Automática**\n\n${process.env.suggestions || 'No se generaron sugerencias'}`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
