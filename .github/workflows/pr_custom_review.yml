@@ -7,6 +7,8 @@ on:
 
 permissions:
   pull-requests: write  # Permiso mínimo necesario
+  contents: write
+  issues: write
 
 jobs:
   code_review:
@@ -35,16 +37,26 @@ jobs:
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          DIFF=$(head -100 pr_diff.txt | sed 's/\x1B\[[0-9;]*[JKmsu]//g')
+          # Limpiar y escapar el diff correctamente
+          DIFF=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/"/\\"/g' -e 's/$/\\n/' | tr -d '\n')
           
-          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "model": "codellama:7b-instruct",
-              "prompt": "Revisa este código (3 sugerencias):\n```diff\n'"$DIFF"'\n```",
+          # Construir JSON correctamente escapado
+          JSON_PAYLOAD=$(jq -n \
+            --arg model "codellama:7b-instruct" \
+            --arg diff "$DIFF" \
+            '{
+              "model": $model,
+              "prompt": "Revisa este código (3 sugerencias):\n```diff\n\($diff)\n```",
               "stream": false,
               "options": {"temperature": 0.2}
             }')
+
+          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          # Debug: Mostrar respuesta en logs
+          echo "Respuesta de Ollama: $RESPONSE"
 
           if echo "$RESPONSE" | jq -e '.response' >/dev/null; then
             echo "suggestions=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d')" >> $GITHUB_ENV
