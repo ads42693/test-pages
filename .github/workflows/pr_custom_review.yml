@@ -14,75 +14,68 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para obtener todo el historial
+          fetch-depth: 0
 
       - name: Setup environment
-        run: sudo apt-get install -y jq
-
-      - name: Get Base Branch
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
-          git checkout ${{ github.base_ref }}
+          sudo apt-get update
+          sudo apt-get install -y jq
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
 
       - name: Generate PR Diff
         run: |
-          git checkout ${{ github.head_ref }}
-          git diff --unified=0 ${{ github.base_ref }} > pr_diff.txt
-          echo "Diff generado:"
-          head -n 100 pr_diff.txt
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }} -- . > pr_diff.txt
+          echo "Generated diff:"
+          cat pr_diff.txt | head -n 50
 
       - name: Analyze with Ollama
         id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # Preprocesar diff y construir prompt
-          DIFF_CONTENT=$(sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' pr_diff.txt | jq -Rs .)
+          # Sanitizar y limitar diff
+          DIFF_CONTENT=$(sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/\\/\\\\/g' -e 's/"/\\"/g' pr_diff.txt | head -n 100 | jq -Rs .)
           
-          PROMPT=$(jq -n \
+          # Construir payload con timeout
+          JSON_PAYLOAD=$(jq -n \
+            --arg model "codellama:7b" \
             --arg diff "$DIFF_CONTENT" \
             '{
-              "model": "codellama:7b",
-              "prompt": "Como experto en code review, analiza estos cambios (formato markdown):\n1. Identifica posibles bugs\n2. Sugiere mejoras de código\n3. Recomendaciones de estilo\n\nDiff:\n\($diff)",
+              "model": $model,
+              "prompt": "Revisa este diff y genera 3 recomendaciones en markdown:\n\($diff)",
               "stream": false,
-              "options": {"temperature": 0.1, "num_ctx": 4096}
+              "options": {"temperature": 0.2}
             }')
 
-          # Enviar a Ollama y procesar respuesta
-          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "$PROMPT")
-
-          echo "Respuesta de la API: $RESPONSE"
+          echo "Request payload: $JSON_PAYLOAD"
           
-          # Extraer y formatear sugerencias
-          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | 
-            sed '/^$/d' | 
-            head -c 4000 |  # Limitar tamaño para GitHub
-            jq -Rs '.' | 
-            sed 's/^"//;s/"$//')
+          # Enviar solicitud con verificación de errores
+          RESPONSE=$(curl -sS -m 120 -X POST "$OLLAMA_API/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" || echo '{"error": "curl_failed"}')
 
-          echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
+          echo "Raw API response: $RESPONSE"
+          
+          # Procesamiento robusto
+          if ! SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response // "null"'); then
+            echo "::error::Invalid JSON response"
+            SUGGESTIONS="null"
+          fi
+
+          echo "suggestions=${SUGGESTIONS}" >> $GITHUB_ENV
 
       - name: Post Review Comment
-        if: env.suggestions != null && env.suggestions != 'null'
+        if: env.suggestions != 'null' && env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const analysis = process.env.suggestions 
-              ? process.env.suggestions 
-                  .replace(/\\n/g, '\n')
-                  .replace(/\\"/g, '"')
-              : 'No se generaron sugerencias';
-            
-            const commentBody = `
-              ## 🔍 Revisión Automática de Código
+            const body = `
+              ## 🛠️ Análisis Automático
+              ${process.env.suggestions}
               
-              **Análisis de cambios en:** ${context.payload.pull_request.head.sha.slice(0,7)}
-              
-              ${analysis}
-              
-              _Revisión generada con [Codellama 7B](${process.env.OLLAMA_API})_
+              _Generado con [codellama-7b](${process.env.OLLAMA_API})_
             `;
             
             try {
@@ -90,8 +83,9 @@ jobs:
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: commentBody
+                body: body
               });
             } catch (error) {
-              core.error(`Error al publicar comentario: ${error.message}`);
+              core.error("Error al publicar: " + error.message);
+              core.setFailed("Falló publicación de comentario");
             }
