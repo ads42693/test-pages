@@ -30,61 +30,75 @@ jobs:
           echo "URL: ${{ secrets.OLLAMA_API_BASE }}"
           curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
 
-      - name: Generate security review
+      - name: AI Security Review
         id: ollama_review
         env:
-          OLLAMA_URL: ${{ secrets.OLLAMA_API_BASE }}
+          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}  # Ej: https://tudominio.ngrok-free.app
+          MODEL: "codellama:7b-instruct"  # Modelo optimizado
         run: |
           set -euo pipefail
       
-          # 1. Verificar conexión con Ollama
-          if ! curl -s "$OLLAMA_URL" >/dev/null; then
-            echo "::error::❌ No se puede conectar a Ollama en $OLLAMA_URL"
-            echo "suggestions=🔴 Error: Servidor AI no disponible" >> $GITHUB_ENV
-            exit 0
-          fi
+          # 1. Configurar parámetros críticos
+          MAX_DIFF_SIZE=3000  # 3KB máximo para evitar timeout
+          TIMEOUT=250  # 4 minutos + margen
       
-          # 2. Verificar modelo instalado
-          MODEL_STATUS=$(curl -s "$OLLAMA_URL/api/tags" | jq -r '.models[] | select(.name == "codellama:7b") | .digest')
-          if [ -z "$MODEL_STATUS" ]; then
-            echo "::error::❌ Modelo codellama:7b no instalado"
-            echo "suggestions=🔴 Error: Modelo AI no configurado" >> $GITHUB_ENV
-            exit 0
-          fi
+          # 2. Obtener y sanitizar diff
+          SANITIZED_DIFF=$(head -c $MAX_DIFF_SIZE pr_diff.txt | \
+            LC_ALL=C sed -e 's/[^[:print:]]/ /g' -e 's/\\/ /g' -e 's/\x1B\[[0-9;]*[JKmsu]//g')
       
-          # 3. Generar y validar diff
-          SANITIZED_DIFF=$(head -c 10000 pr_diff.txt | sed -e 's/[^[:print:]]/ /g' -e 's/\\/ /g')
-          if [ -z "$SANITIZED_DIFF" ]; then
-            echo "::warning::Diff vacío después de sanitización"
-            exit 0
-          fi
+          # 3. Construir prompt optimizado
+          PROMPT=$(cat <<-EOF
+          [INSTRUCCIONES]
+          1. Analizar código para vulnerabilidades OWASP Top 10
+          2. Verificar formato PEP8
+          3. Máximo 3 sugerencias
+          4. Usar formato:
+          - [TIPO] Descripción
+            \`Código ejemplo\`
       
-          # 4. Construir payload
+          [CÓDIGO]
+          \`\`\`
+          $SANITIZED_DIFF
+          \`\`\`
+          EOF
+          )
+      
+          # 4. Llamada a Ollama con parámetros optimizados
           JSON_PAYLOAD=$(jq -n \
-            --arg prompt "Revisar código según OWASP y PEP8:\n\`\`\`\n$SANITIZED_DIFF\n\`\`\`\nSugerencias:" \
-            '{"model":"codellama:7b", "prompt":$prompt, "stream":false}')
+            --arg model "$MODEL" \
+            --arg prompt "$PROMPT" \
+            '{
+              "model": $model,
+              "prompt": $prompt,
+              "stream": false,
+              "options": {
+                "num_ctx": 1024,  # Reducir contexto
+                "temperature": 0.3
+              }
+            }')
       
-          # 5. Llamar a Ollama con logs de diagnóstico
-          echo "Enviando payload:"
-          echo "$JSON_PAYLOAD" | jq . > payload_debug.json
-          
-          RESPONSE=$(timeout 150 curl -v -s -X POST "$OLLAMA_URL/api/generate" \
+          # 5. Ejecutar con timeout extendido y logs detallados
+          echo "Payload enviado:"
+          echo "$JSON_PAYLOAD" | jq .
+      
+          if ! RESPONSE=$(timeout $TIMEOUT curl -v -s -X POST "$OLLAMA_API_BASE/api/generate" \
             -H "Content-Type: application/json" \
-            -d "@payload_debug.json") 2> curl_debug.log || CURL_ERROR=$?
-          
-          # 6. Analizar respuesta
-          if [ -n "$CURL_ERROR" ]; then
-            echo "::error::Error en curl (Código $CURL_ERROR). Logs:"
-            cat curl_debug.log
-            echo "suggestions=🔴 Error técnico: Ver logs del workflow" >> $GITHUB_ENV
-          elif [ -z "$RESPONSE" ]; then
-            echo "::error::Respuesta vacía de Ollama"
-            echo "suggestions=🔴 El modelo no generó respuesta" >> $GITHUB_ENV
-          else
-            echo "Respuesta cruda:"
-            echo "$RESPONSE" | jq .
-            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response')
+            -d "@-" <<< "$JSON_PAYLOAD" 2> curl.log); then
+      
+            echo "::error::❌ Timeout excedido ($TIMEOUT segundos)"
+            echo "suggestions=⏳ El análisis tardó demasiado. Considera:" >> $GITHUB_ENV
+            echo "suggestions+=🔹 Reducir tamaño del PR" >> $GITHUB_ENV
+            echo "suggestions+=🔹 Usar modelo más ligero" >> $GITHUB_ENV
+            exit 0
+          fi
+      
+          # 6. Procesar respuesta
+          if SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d'); then
             echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
+          else
+            echo "::error::Error procesando respuesta"
+            echo "suggestions=🔴 Error técnico. Ver logs" >> $GITHUB_ENV
+            cat curl.log
           fi
 
       - name: Post review comment
