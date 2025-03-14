@@ -29,56 +29,50 @@ jobs:
           git diff origin/${{ github.base_ref }} --unified=0 > pr_diff.txt
           echo "Diff lines: $(wc -l pr_diff.txt)"
 
+      - name: Debug Connection
+        run: |
+          curl -L -v "${{ secrets.OLLAMA_API_BASE }}/api/generate" \
+            -H "Content-Type: application/json" \
+            -d '{"model":"codellama:7b","prompt":"test"}'
+
       - name: Analyze with Ollama
         id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # 1. Limpiar diff sin usar sed
-          DIFF_CONTENT=$(cat pr_diff.txt | 
-            perl -pe 's/\e\[[0-9;]*[a-zA-Z]//g' |  # Eliminar códigos ANSI
-            jq -Rs . |                            # Escapar como raw string JSON
-            sed 's/^"//;s/"$//')                   # Remover comillas extras
-          
-          # 2. Limitar tamaño conservando estructura
-          TRUNC_DIFF=${DIFF_CONTENT:0:3000}
-          
-          # 3. Construir payload con jq
+          # 1. Validar conexión primero
+          echo "🔍 Probando conexión con Ollama..."
+          if ! curl -s -f "$OLLAMA_API/api/tags"; then
+            echo "::error::No se puede conectar a Ollama en $OLLAMA_API"
+            exit 1
+          fi
+      
+          # 2. Preparar payload
+          DIFF_CONTENT=$(jq -Rs . pr_diff.txt)
           JSON_PAYLOAD=$(jq -n \
             --arg model "codellama:7b" \
-            --arg diff "$TRUNC_DIFF" \
+            --arg diff "${DIFF_CONTENT:0:3000}" \
             '{
               model: $model,
-              prompt: "Analizar este diff y dar 3 recomendaciones en markdown:\n\($diff)",
+              prompt: "Revisar cambios:\n\($diff)",
               stream: false,
               options: {temperature: 0.2}
-            }' | jq -c)
-          
-          echo "Payload size: ${#JSON_PAYLOAD} chars"
-
-          # 4. Enviar petición con verificación HTTP
-          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            }')
+      
+          # 3. Enviar con seguimiento de redirecciones
+          HTTP_CODE=$(curl -L -s -o response.json -w "%{http_code}" \
             -X POST "$OLLAMA_API/api/generate" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
-          
-          if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "::error::API Error. HTTP Code: $HTTP_CODE"
+      
+          # 4. Manejar respuesta
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            jq -r '.response' response.json > suggestions.md
+            echo "suggestions=$(cat suggestions.md)" >> $GITHUB_ENV
+          else
+            echo "::error::Error $HTTP_CODE en la API"
             cat response.json
             exit 1
-          fi
-
-          # 5. Procesar respuesta
-          SUGGESTIONS=$(jq -r '.response // empty' response.json |
-            sed -e 's/\\"/"/g' -e 's/\\n/\n/g')
-          
-          if [ -n "$SUGGESTIONS" ]; then
-            echo "suggestions<<EOF" >> $GITHUB_ENV
-            echo "$SUGGESTIONS" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-          else
-            echo "::warning::Respuesta vacía de Ollama"
-            echo "suggestions=" >> $GITHUB_ENV
           fi
 
       - name: Post Review Comment
