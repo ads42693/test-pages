@@ -37,43 +37,44 @@ jobs:
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # Limpiar y truncar diff
+          # Limpiar y formatear el diff
           DIFF=$(head -n 50 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/"/\\"/g' -e 's/$/\\n/' | tr -d '\n')
           
-          # Construir payload
+          # Construir JSON
           JSON_PAYLOAD=$(jq -n \
-            --arg model "codellama:7b" \
+            --arg model "codellama:7b-instruct" \
             --arg diff "$DIFF" \
             '{
               "model": $model,
-              "prompt": "Revisión código (3 puntos):\n```diff\n\($diff)\n```",
+              "prompt": "Generar 3 sugerencias concisas (formato lista sin markdown):\nCódigo:\n```diff\n\($diff)\n```",
               "stream": false,
               "options": {"temperature": 0.2}
             }')
 
-          # Enviar solicitud
-          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD")
-
-          echo "Raw response: $RESPONSE"  # Para debug
+          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" -H "Content-Type: application/json" -d "$JSON_PAYLOAD")
           
-          # Procesar respuesta
-          if echo "$RESPONSE" | jq -e '.response' >/dev/null; then
-            echo "suggestions=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d')" >> $GITHUB_ENV
-          else
-            echo "::error::Error en Ollama: $(echo "$RESPONSE" | jq -r '.error? // "Respuesta inválida"')"
-            exit 1
-          fi
+          # Sanitizar respuesta
+          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | 
+            sed -e 's/"/\\"/g' -e 's/\n/<br>/g' -e 's/\r//g' |
+            tr -cd '\11\12\15\40-\176' | head -c 2000)
+
+          # Formatear correctamente para GitHub
+          echo "suggestions<<EOF" >> $GITHUB_ENV
+          echo "$SUGGESTIONS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
   
       - name: Post Comment
         if: env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
+            const comment = `🤖 **Revisión Automática**\n\n${process.env.suggestions
+              .replace(/<br>/g, '\n')
+              .replace(/(\d+\.)/g, '\n$1')}`;
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `🤖 **Revisión Automática**\n\n${process.env.suggestions}`
-            })
+              body: comment
+            });
