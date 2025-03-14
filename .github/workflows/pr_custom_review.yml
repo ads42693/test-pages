@@ -26,77 +26,70 @@ jobs:
       - name: Generate PR Diff
         run: |
           git fetch origin ${{ github.base_ref }}
-          git diff origin/${{ github.base_ref }} -- . > pr_diff.txt
-          echo "Generated diff:"
-          cat pr_diff.txt | head -n 50
+          git diff origin/${{ github.base_ref }} --unified=0 > pr_diff.txt
+          echo "Diff lines: $(wc -l pr_diff.txt)"
 
       - name: Analyze with Ollama
         id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # 1. Limpiar y formatear diff correctamente
-          DIFF_CONTENT=$(sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/\\/\\\\/g' -e 's/"/\\"/g' pr_diff.txt | head -n 100)
+          # 1. Limpiar diff sin usar sed
+          DIFF_CONTENT=$(cat pr_diff.txt | 
+            perl -pe 's/\e\[[0-9;]*[a-zA-Z]//g' |  # Eliminar códigos ANSI
+            jq -Rs . |                            # Escapar como raw string JSON
+            sed 's/^"//;s/"$//')                   # Remover comillas extras
           
-          # 2. Construir JSON válido con jq
+          # 2. Limitar tamaño conservando estructura
+          TRUNC_DIFF=${DIFF_CONTENT:0:3000}
+          
+          # 3. Construir payload con jq
           JSON_PAYLOAD=$(jq -n \
             --arg model "codellama:7b" \
-            --arg diff "$DIFF_CONTENT" \
+            --arg diff "$TRUNC_DIFF" \
             '{
-              "model": $model,
-              "prompt": "Revisa este diff y genera 3 recomendaciones en markdown:\n\($diff)",
-              "stream": false,
-              "options": {"temperature": 0.2}
-            }' | jq -c .)  # Compactar JSON
-
-          echo "Request payload:"
-          echo "$JSON_PAYLOAD"
+              model: $model,
+              prompt: "Analizar este diff y dar 3 recomendaciones en markdown:\n\($diff)",
+              stream: false,
+              options: {temperature: 0.2}
+            }' | jq -c)
           
-          # 3. Validar JSON antes de enviar
-          if ! jq -e . <<< "$JSON_PAYLOAD" >/dev/null; then
-            echo "::error::JSON inválido generado"
+          echo "Payload size: ${#JSON_PAYLOAD} chars"
+
+          # 4. Enviar petición con verificación HTTP
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            -X POST "$OLLAMA_API/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+          
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::API Error. HTTP Code: $HTTP_CODE"
+            cat response.json
             exit 1
           fi
 
-          # 4. Enviar petición con manejo de errores
-          RESPONSE=$(curl -sS -X POST "$OLLAMA_API/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" || echo '{"error": "curl_failed"}')
-
-          echo "Raw API response: $RESPONSE"
-          
           # 5. Procesar respuesta
-          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response // empty' | sed -e 's/\\"/"/g' -e 's/\n/ /g')
+          SUGGESTIONS=$(jq -r '.response // empty' response.json |
+            sed -e 's/\\"/"/g' -e 's/\\n/\n/g')
           
           if [ -n "$SUGGESTIONS" ]; then
             echo "suggestions<<EOF" >> $GITHUB_ENV
             echo "$SUGGESTIONS" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
           else
-            echo "::warning::No se recibieron sugerencias"
+            echo "::warning::Respuesta vacía de Ollama"
             echo "suggestions=" >> $GITHUB_ENV
           fi
 
       - name: Post Review Comment
-        if: env.suggestions != 'null' && env.suggestions != ''
+        if: env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const body = `
-              ## 🛠️ Análisis Automático
-              ${process.env.suggestions}
-              
-              _Generado con [codellama-7b](${process.env.OLLAMA_API})_
-            `;
-            
-            try {
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: body
-              });
-            } catch (error) {
-              core.error("Error al publicar: " + error.message);
-              core.setFailed("Falló publicación de comentario");
-            }
+            const comment = `## 📝 Análisis Automático\n\n${process.env.suggestions}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
