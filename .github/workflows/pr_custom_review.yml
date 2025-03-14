@@ -3,7 +3,7 @@ name: Custom Code Review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, "review_requested"]
+    types: [opened, reopened, ready_for_review, "review_requested", "synchronize"]
 
 permissions:
   pull-requests: write  # Permiso mínimo necesario
@@ -42,7 +42,7 @@ jobs:
           
           # Construir payload
           JSON_PAYLOAD=$(jq -n \
-            --arg model "codellama:7b-instruct" \
+            --arg model "codellama:7b" \
             --arg diff "$DIFF" \
             '{
               "model": $model,
