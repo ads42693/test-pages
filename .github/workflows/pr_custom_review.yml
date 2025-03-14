@@ -30,75 +30,50 @@ jobs:
           echo "URL: ${{ secrets.OLLAMA_API_BASE }}"
           curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
 
-      - name: AI Security Review
+      - name: Generate security review
         id: ollama_review
         env:
-          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}  # Ej: https://tudominio.ngrok-free.app
-          MODEL: "codellama:7b-instruct"  # Modelo optimizado
+          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
         run: |
           set -euo pipefail
       
-          # 1. Configurar parámetros críticos
-          MAX_DIFF_SIZE=3000  # 3KB máximo para evitar timeout
-          TIMEOUT=250  # 4 minutos + margen
+          # 1. Nuevo método de truncado que preserva líneas completas
+          SANITIZED_DIFF=$(awk 'NR<=50' pr_diff.txt | sed -e 's/"/\\"/g' -e 's/\x1B\[[0-9;]*[JKmsu]//g')
       
-          # 2. Obtener y sanitizar diff
-          SANITIZED_DIFF=$(head -c $MAX_DIFF_SIZE pr_diff.txt | \
-            LC_ALL=C sed -e 's/[^[:print:]]/ /g' -e 's/\\/ /g' -e 's/\x1B\[[0-9;]*[JKmsu]//g')
-      
-          # 3. Construir prompt optimizado
-          PROMPT=$(cat <<-EOF
-          [INSTRUCCIONES]
-          1. Analizar código para vulnerabilidades OWASP Top 10
-          2. Verificar formato PEP8
-          3. Máximo 3 sugerencias
-          4. Usar formato:
-          - [TIPO] Descripción
-            \`Código ejemplo\`
-      
-          [CÓDIGO]
-          \`\`\`
-          $SANITIZED_DIFF
-          \`\`\`
-          EOF
-          )
-      
-          # 4. Llamada a Ollama con parámetros optimizados
-          JSON_PAYLOAD=$(jq -n \
-            --arg model "$MODEL" \
-            --arg prompt "$PROMPT" \
+          # 2. Validar JSON antes de enviar
+          PAYLOAD_JSON=$(jq -n \
+            --arg model "codellama:7b-instruct" \
+            --arg diff "$SANITIZED_DIFF" \
             '{
               "model": $model,
-              "prompt": $prompt,
+              "prompt": "Revisión código (formato conciso):\n```diff\n\($diff)\n```\n3 sugerencias:",
               "stream": false,
               "options": {
-                "num_ctx": 1024,  # Reducir contexto
-                "temperature": 0.3
+                "num_ctx": 2048,
+                "temperature": 0.2
               }
             }')
       
-          # 5. Ejecutar con timeout extendido y logs detallados
-          echo "Payload enviado:"
-          echo "$JSON_PAYLOAD" | jq .
-      
-          if ! RESPONSE=$(timeout $TIMEOUT curl -v -s -X POST "$OLLAMA_API_BASE/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "@-" <<< "$JSON_PAYLOAD" 2> curl.log); then
-      
-            echo "::error::❌ Timeout excedido ($TIMEOUT segundos)"
-            echo "suggestions=⏳ El análisis tardó demasiado. Considera:" >> $GITHUB_ENV
-            echo "suggestions+=🔹 Reducir tamaño del PR" >> $GITHUB_ENV
-            echo "suggestions+=🔹 Usar modelo más ligero" >> $GITHUB_ENV
-            exit 0
+          # 3. Verificar integridad del JSON
+          if ! jq -e . <<< "$PAYLOAD_JSON" >/dev/null; then
+            echo "::error::JSON inválido generado"
+            echo "suggestions=🔴 Error técnico: Formato incorrecto" >> $GITHUB_ENV
+            exit 1
           fi
       
-          # 6. Procesar respuesta
-          if SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d'); then
+          # 4. Enviar con timeout extendido y registro
+          RESPONSE=$(timeout 300 curl -s -X POST "$OLLAMA_API_BASE/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD_JSON")
+      
+          # 5. Manejar respuesta (nuevo)
+          if echo "$RESPONSE" | jq -e '.response' >/dev/null; then
+            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d')
             echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
           else
-            echo "::error::Error procesando respuesta"
-            echo "suggestions=🔴 Error técnico. Ver logs" >> $GITHUB_ENV
-            cat curl.log
+            echo "::error::Respuesta inválida de Ollama"
+            echo "suggestions=🔴 Revisión fallida. Verificar:" >> $GITHUB_ENV
+            echo "suggestions+=1. Conexión con servidor AI\n2. Tamaño del PR" >> $GITHUB_ENV
           fi
 
       - name: Post review comment
