@@ -27,13 +27,13 @@ jobs:
 
       - name: Test Ollama
         run: |
-          echo "URL: ${{ secrets.OLLAMA_ENDPOINT }}"
-          curl -s "${{ secrets.OLLAMA_ENDPOINT }}/api/tags" | jq
+          echo "URL: ${{ secrets.OLLAMA_API_BASE }}"
+          curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
 
       - name: Generate security review
         id: ollama_review
         env:
-          OLLAMA_URL: ${{ secrets.OLLAMA_ENDPOINT }}
+          OLLAMA_URL: ${{ secrets.OLLAMA_API_BASE }}
         run: |
           set -euo pipefail
       
