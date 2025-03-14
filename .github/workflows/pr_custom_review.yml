@@ -14,31 +14,25 @@ jobs:
   code_review:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para el diff completo
+          fetch-depth: 0
 
-      - name: Setup dependencies
-        run: sudo apt-get install -y jq  # Para procesar JSON
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
 
       - name: Get PR Diff
         run: |
           git fetch origin ${{ github.base_ref }}
-          git diff --unified=20 origin/${{ github.base_ref }}...HEAD > pr_diff.txt
-
-      - name: Test Ollama
-        run: |
-          echo "URL: ${{ secrets.OLLAMA_API_BASE }}"
-          curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
+          git diff origin/${{ github.base_ref }}...HEAD > pr_diff.txt
 
       - name: Generate Review
         id: ollama
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # Limpiar y preparar el diff
-          DIFF=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/"/\\"/g' | tr -d '\n' | cut -c -2000)
+          # Limpiar y preparar el diff (conservar formato)
+          DIFF=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' | jq -Rs .)
           
           # Construir payload
           JSON_PAYLOAD=$(jq -n \
@@ -46,30 +40,42 @@ jobs:
             --arg diff "$DIFF" \
             '{
               "model": $model,
-              "prompt": "Generar 3 sugerencias técnicas concisas para este código (formato numerado):\n\($diff)",
+              "prompt": "Generar 3 sugerencias en formato markdown (## Sugerencias\\n1. Item\\n2. Item):\n\($diff)",
               "stream": false,
               "options": {"temperature": 0.2}
             }')
 
           # Obtener respuesta
           RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" -H "Content-Type: application/json" -d "$JSON_PAYLOAD")
-          echo "Raw API response: $RESPONSE"  # Debug
+          echo "API Response: $RESPONSE"
           
-          # Procesar y sanitizar
-          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response // "null"' | sed -e 's/"/\"/g' -e 's/\n/ /g' -e 's/\r/ /g' | head -n 5)
+          # Extraer y formatear sugerencias
+          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | 
+            sed -e 's/\\"/"/g' -e 's/"/\\"/g' -e 's/\n/\\n/g')
 
-          # Guardar en environment variable
-          echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
-  
+          # Guardar en environment variable (formato seguro)
+          echo "suggestions<<EOF" >> $GITHUB_ENV
+          echo -e "$SUGGESTIONS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Post Comment
-        if: env.suggestions != 'null' && env.suggestions != ''
+        if: env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const comment = `🤖 **Revisión Automática**\n\n${process.env.suggestions || 'No se generaron sugerencias'}`;
+            const body = `
+              ## 🤖 Revisión Automática 
+              
+              ${process.env.suggestions 
+                ? process.env.suggestions
+                    .replace(/\\n/g, '\n')  # Restaurar saltos de línea
+                    .replace(/\\"/g, '"')    # Remover escapes de comillas
+                : 'No se generaron sugerencias'}
+            `;
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              body: body
             });
