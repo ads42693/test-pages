@@ -30,57 +30,37 @@ jobs:
           echo "URL: ${{ secrets.OLLAMA_API_BASE }}"
           curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
 
-      - name: Generate security review
-        id: ollama_review
+      - name: Generate Review
+        id: ollama
         env:
-          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
+          OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          set -euo pipefail
-      
-          # 1. Nuevo método de truncado que preserva líneas completas
-          SANITIZED_DIFF=$(awk 'NR<=50' pr_diff.txt | sed -e 's/"/\\"/g' -e 's/\x1B\[[0-9;]*[JKmsu]//g')
-      
-          # 2. Validar JSON antes de enviar
-          PAYLOAD_JSON=$(jq -n \
-            --arg model "codellama:7b-instruct" \
-            --arg diff "$SANITIZED_DIFF" \
-            '{
-              "model": $model,
-              "prompt": "Revisión código (formato conciso):\n```diff\n\($diff)\n```\n3 sugerencias:",
+          DIFF=$(head -100 pr_diff.txt | sed 's/\x1B\[[0-9;]*[JKmsu]//g')
+          
+          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "codellama:7b-instruct",
+              "prompt": "Revisa este código (3 sugerencias):\n```diff\n'"$DIFF"'\n```",
               "stream": false,
-              "options": {
-                "num_ctx": 2048,
-                "temperature": 0.2
-              }
+              "options": {"temperature": 0.2}
             }')
-      
-          # 3. Verificar integridad del JSON
-          if ! jq -e . <<< "$PAYLOAD_JSON" >/dev/null; then
-            echo "::error::JSON inválido generado"
-            echo "suggestions=🔴 Error técnico: Formato incorrecto" >> $GITHUB_ENV
+
+          if echo "$RESPONSE" | jq -e '.response' >/dev/null; then
+            echo "suggestions=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d')" >> $GITHUB_ENV
+          else
+            echo "::error::Error en Ollama: $(echo "$RESPONSE" | jq -r '.error // "Unknown error"')"
             exit 1
           fi
-      
-          # 4. Enviar con timeout extendido y registro
-          RESPONSE=$(timeout 300 curl -s -X POST "$OLLAMA_API_BASE/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD_JSON")
-      
-          # 5. Manejar respuesta (nuevo)
-          if echo "$RESPONSE" | jq -e '.response' >/dev/null; then
-            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d')
-            echo "suggestions=$SUGGESTIONS" >> $GITHUB_ENV
-          else
-            echo "::error::Respuesta inválida de Ollama"
-            echo "suggestions=🔴 Revisión fallida. Verificar:" >> $GITHUB_ENV
-            echo "suggestions+=1. Conexión con servidor AI\n2. Tamaño del PR" >> $GITHUB_ENV
-          fi
-
-      - name: Post review comment
+  
+      - name: Post Comment
         if: env.suggestions != ''
-        run: |
-          curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            -d "{\"body\":\"🔍 **Revisión Automática**\n\n${{ env.suggestions }}\"}"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🤖 **Revisión Automática**\n\n${process.env.suggestions}`
+            })
