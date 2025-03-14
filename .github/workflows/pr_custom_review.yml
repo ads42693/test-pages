@@ -1,14 +1,12 @@
-
-name: Custom Code Review
+name: AI Code Review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, "review_requested", "synchronize"]
+    types: [opened, reopened, ready_for_review, review_requested, synchronize]
 
 permissions:
-  pull-requests: write  # Permiso mínimo necesario
-  contents: write
-  issues: write
+  pull-requests: write
+  contents: read
 
 jobs:
   code_review:
@@ -18,8 +16,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
-        run: sudo apt-get install -y jq
+      - name: Verify Ollama Connection
+        run: |
+          echo "Testing Ollama API at: ${{ secrets.OLLAMA_API_BASE }}/api/tags"
+          curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
+        env:
+          OLLAMA_API_BASE: ${{ secrets.OLLAMA_API_BASE }}
 
       - name: Get PR Diff
         run: |
@@ -31,51 +33,60 @@ jobs:
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # Limpiar y preparar el diff (conservar formato)
-          DIFF=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' | jq -Rs .)
+          # Preparar diff (versión segura)
+          DIFF_CONTENT=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' | jq -Rs .)
           
-          # Construir payload
+          # Construir payload específico para codellama:7b
           JSON_PAYLOAD=$(jq -n \
             --arg model "codellama:7b" \
-            --arg diff "$DIFF" \
+            --arg diff "$DIFF_CONTENT" \
             '{
               "model": $model,
-              "prompt": "Generar 3 sugerencias en formato markdown (## Sugerencias\\n1. Item\\n2. Item):\n\($diff)",
+              "prompt": "[INST] Genera 3 sugerencias técnicas en markdown para este PR basado en el diff:\n\($diff)\n[/INST]",
               "stream": false,
-              "options": {"temperature": 0.2}
+              "options": {"temperature": 0.2, "num_ctx": 2048}
             }')
 
-          # Obtener respuesta
-          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" -H "Content-Type: application/json" -d "$JSON_PAYLOAD")
-          echo "API Response: $RESPONSE"
+          echo "Sending payload: $JSON_PAYLOAD"
           
-          # Extraer y formatear sugerencias
-          SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | 
-            sed -e 's/\\"/"/g' -e 's/"/\\"/g' -e 's/\n/\\n/g')
+          # Enviar solicitud con timeout
+          RESPONSE=$(timeout 30 curl -s -X POST "$OLLAMA_API/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+          
+          echo "Raw API response: $RESPONSE"
 
-          # Guardar en environment variable (formato seguro)
-          echo "suggestions<<EOF" >> $GITHUB_ENV
-          echo -e "$SUGGESTIONS" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # Procesar respuesta
+          if [ $? -eq 0 ] && echo "$RESPONSE" | jq -e '.response' >/dev/null; then
+            SUGGESTIONS=$(echo "$RESPONSE" | jq -r '.response' | sed 's/"/\"/g')
+            echo "suggestions<<EOF" >> $GITHUB_ENV
+            echo "$SUGGESTIONS" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "::error::Failed to get valid response from Ollama"
+            echo "suggestions=" >> $GITHUB_ENV
+          fi
 
-      - name: Post Comment
+      - name: Post PR Comment
         if: env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
             const body = `
-              ## 🤖 Revisión Automática 
+              ## 🤖 Revisión Automática
               
-              ${process.env.suggestions 
-                ? process.env.suggestions
-                    .replace(/\\n/g, '\n')  # Restaurar saltos de línea
-                    .replace(/\\"/g, '"')    # Remover escapes de comillas
-                : 'No se generaron sugerencias'}
+              ${process.env.suggestions}
+
+              _Revisión generada por [Ollama](${process.env.OLLAMA_API})_ 
             `;
             
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } catch (e) {
+              core.error("Error posting comment: " + e.message);
+            }
