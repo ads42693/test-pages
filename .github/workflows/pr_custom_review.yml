@@ -47,12 +47,6 @@ jobs:
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
 
-            # Manejar archivos eliminados
-            if [ ! -f "$FILE" ]; then
-              echo "Skipping deleted file: $FILE"
-              continue
-            fi
-
             # Leer el contenido del archivo y escapar caracteres especiales
             content=$(cat "$FILE")
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
@@ -69,23 +63,19 @@ jobs:
                 options: { "temperature": 0.2 }
               }')
 
-            # Verificar si jq tuvo éxito
-            if [ $? -ne 0 ]; then
-              echo "Error: Failed to create JSON payload for $FILE"
-              continue
-            fi
-
             # Enviar la solicitud a la API
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
               --http1.1 \
               -H "Content-Type: application/json" \
-              -d "$JSON_PAYLOAD")
+              -d "$JSON_PAYLOAD" | jq -r '.response')
 
-            # Extraer las sugerencias de la respuesta
-            suggestions=$(echo "$response" | jq -r '.response')
-
-            # Añadir las sugerencias al conjunto de todas las sugerencias
-            ALL_SUGGESTIONS="${ALL_SUGGESTIONS}\n### 🔍 Review for $FILE\n\n\`\`\`suggestion\n$suggestions\n\`\`\`\n\n---\n"
+            # Añadir el prefijo del nombre del archivo y las sugerencias
+            echo "## Revision para $FILE" >> suggestions.md
+            echo "" >> suggestions.md
+            echo "$suggestions" >> suggestions.md
+            echo "" >> suggestions.md
+            echo "-----------" >> suggestions.md
+            echo "" >> suggestions.md
           done
 
           # Exportar todas las sugerencias como una variable de entorno
