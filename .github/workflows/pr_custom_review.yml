@@ -23,19 +23,13 @@ jobs:
           sudo apt-get install -y jq
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
-      - name: Debug Connection
-        run: |
-          curl -L -v "${{ secrets.OLLAMA_API_BASE }}/api/generate" \
-            -H "Content-Type: application/json" \
-            -d '{"model":"codellama:7b","prompt":"test"}'
 
       - name: Analyze Modified Files
         id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # 1. Encontrar todos los archivos modificados en el área de staging
+          # 1. Encontrar todos los archivos modificados en el PR
           FILES=$(git diff --name-only --diff-filter=ACMDR origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
 
           if [ -z "$FILES" ]; then
@@ -44,13 +38,24 @@ jobs:
           fi
 
           # 2. Inicializar variable para almacenar todas las sugerencias
-          ALL_SUGGESTIONS=""
+          ALL_SUGGESTIONS="## Archivos Revisados\n"
+          for FILE in $FILES; do
+            ALL_SUGGESTIONS="${ALL_SUGGESTIONS}- $FILE\n"
+          done
 
           # 3. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
 
-            prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'.\n"
+            # Manejar archivos eliminados
+            if [ ! -f "$FILE" ]; then
+              echo "Skipping deleted file: $FILE"
+              continue
+            fi
+
+            # Leer el contenido del archivo y escapar caracteres especiales
+            content=$(cat "$FILE" | jq -Rs .)
+            prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
 
             # Crear el payload JSON
             JSON_PAYLOAD=$(jq -n \
@@ -64,8 +69,15 @@ jobs:
                 options: { "temperature": 0.2 }
               }')
 
+            # Verificar si jq tuvo éxito
+            if [ $? -ne 0 ]; then
+              echo "Error: Failed to create JSON payload for $FILE"
+              continue
+            fi
+
             # Enviar la solicitud a la API
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
+              --http1.1 \
               -H "Content-Type: application/json" \
               -d "$JSON_PAYLOAD")
 
@@ -73,7 +85,7 @@ jobs:
             suggestions=$(echo "$response" | jq -r '.response')
 
             # Añadir las sugerencias al conjunto de todas las sugerencias
-            ALL_SUGGESTIONS="${ALL_SUGGESTIONS}\n## Review for $FILE\n\n$suggestions\n\n---\n"
+            ALL_SUGGESTIONS="${ALL_SUGGESTIONS}\n### 🔍 Review for $FILE\n\n\`\`\`suggestion\n$suggestions\n\`\`\`\n\n---\n"
           done
 
           # Exportar todas las sugerencias como una variable de entorno
