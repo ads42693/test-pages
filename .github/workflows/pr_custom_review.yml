@@ -30,7 +30,7 @@ jobs:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
           # 1. Encontrar todos los archivos modificados en el PR
-          FILES=$(git diff --name-only --diff-filter=ACMDR origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
+          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
 
           if [ -z "$FILES" ]; then
             echo "No files to check."
