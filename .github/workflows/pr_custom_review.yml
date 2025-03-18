@@ -1,14 +1,12 @@
-
-name: Custom Code Review
+name: AI Code Review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, "review_requested"]
+    types: [opened, reopened, ready_for_review, review_requested, synchronize]
 
 permissions:
-  pull-requests: write  # Permiso mínimo necesario
-  contents: write
-  issues: write
+  pull-requests: write
+  contents: read
 
 jobs:
   code_review:
@@ -17,62 +15,82 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para el diff completo
+          fetch-depth: 0
 
-      - name: Setup dependencies
-        run: sudo apt-get install -y jq  # Para procesar JSON
-
-      - name: Get PR Diff
+      - name: Setup environment
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git diff --unified=20 origin/${{ github.base_ref }}...HEAD > pr_diff.txt
-
-      - name: Test Ollama
+          sudo apt-get update
+          sudo apt-get install -y jq
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+      - name: Debug Connection
         run: |
-          echo "URL: ${{ secrets.OLLAMA_API_BASE }}"
-          curl -s "${{ secrets.OLLAMA_API_BASE }}/api/tags" | jq
+          curl -L -v "${{ secrets.OLLAMA_API_BASE }}/api/generate" \
+            -H "Content-Type: application/json" \
+            -d '{"model":"codellama:7b","prompt":"test"}'
 
-      - name: Generate Review
-        id: ollama
+      - name: Analyze Modified Files
+        id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
-          # Limpiar y escapar el diff correctamente
-          DIFF=$(head -n 100 pr_diff.txt | sed -e 's/\x1B\[[0-9;]*[JKmsu]//g' -e 's/"/\\"/g' -e 's/$/\\n/' | tr -d '\n')
-          
-          # Construir JSON correctamente escapado
-          JSON_PAYLOAD=$(jq -n \
-            --arg model "codellama:7b" \
-            --arg diff "$DIFF" \
-            '{
-              "model": $model,
-              "prompt": "Revisa este código (3 sugerencias):\n```diff\n\($diff)\n```",
-              "stream": false,
-              "options": {"temperature": 0.2}
-            }')
+          # 1. Encontrar todos los archivos modificados en el área de staging
+          FILES=$(git diff --name-only --diff-filter=ACMDR origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
 
-          RESPONSE=$(curl -s -X POST "$OLLAMA_API/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD")
-
-          # Debug: Mostrar respuesta en logs
-          echo "Respuesta de Ollama: $RESPONSE"
-
-          if echo "$RESPONSE" | jq -e '.response' >/dev/null; then
-            echo "suggestions=$(echo "$RESPONSE" | jq -r '.response' | sed '/^$/d')" >> $GITHUB_ENV
-          else
-            echo "::error::Error en Ollama: $(echo "$RESPONSE" | jq -r '.error // "Unknown error"')"
-            exit 1
+          if [ -z "$FILES" ]; then
+            echo "No files to check."
+            exit 0
           fi
-  
-      - name: Post Comment
+
+          # 2. Inicializar variable para almacenar todas las sugerencias
+          ALL_SUGGESTIONS=""
+
+          # 3. Revisar cada archivo modificado
+          for FILE in $FILES; do
+            echo "Reviewing file: $FILE"
+
+            prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'.\n"
+
+            # Crear el payload JSON
+            JSON_PAYLOAD=$(jq -n \
+              --arg model "codellama:7b" \
+              --arg code "$content" \
+              --arg prompt "$prompt" \
+              '{
+                model: $model,
+                prompt: "Code: \($code) \($prompt)",
+                stream: false,
+                options: { "temperature": 0.2 }
+              }')
+
+            # Enviar la solicitud a la API
+            response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
+              --http1.1 \
+              -H "Content-Type: application/json" \
+              -d "$JSON_PAYLOAD")
+
+            # Extraer las sugerencias de la respuesta
+            suggestions=$(echo "$response" | jq -r '.response')
+
+            # Añadir las sugerencias al conjunto de todas las sugerencias
+            ALL_SUGGESTIONS="${ALL_SUGGESTIONS}\n## Review for $FILE\n\n$suggestions\n\n---\n"
+          done
+
+          # Exportar todas las sugerencias como una variable de entorno
+          echo "suggestions<<EOF" >> $GITHUB_ENV
+          echo -e "$ALL_SUGGESTIONS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Post Review Comment
         if: env.suggestions != ''
         uses: actions/github-script@v7
         with:
           script: |
+            const comment = `## 📝 Análisis Automático\n\n${process.env.suggestions}`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `🤖 **Revisión Automática**\n\n${process.env.suggestions}`
-            })
+              body: comment
+            });
