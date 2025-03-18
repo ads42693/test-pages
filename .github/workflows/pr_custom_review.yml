@@ -54,12 +54,7 @@ jobs:
             fi
 
             # Leer el contenido del archivo y escapar caracteres especiales
-            content=$(cat "$FILE" | jq -Rs .)
-            if [ -z "$content" ]; then
-              echo "Skipping empty file: $FILE"
-              continue
-            fi
-
+            content=$(cat "$FILE")
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
 
             # Crear el payload JSON
