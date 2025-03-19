@@ -110,7 +110,7 @@ jobs:
                 model: $model,
                 prompt: ("Code:\n```\n" + $code + "\n```\n" + $prompt),
                 stream: false,
-                options: { "temperature": 0.2, "max_tokens": 500 }
+                options: { "temperature": 0.2 }
               }')
             
             # Enviar la solicitud a la API y obtener la respuesta con manejo de errores
