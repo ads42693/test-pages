@@ -36,7 +36,7 @@ jobs:
             exit 0
           fi
       
-          # Inicializamos la variable suggestions
+          # Inicializamos la variable suggestions con la lista de archivos
           suggestions="## Archivos Revisados\n"
           for FILE in $FILES; do
             suggestions="${suggestions}- $FILE\n"
@@ -48,7 +48,14 @@ jobs:
       
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
       
-            # Crear el payload JSON usando --rawfile para leer el contenido del archivo directamente
+            # Verificar si el archivo tiene contenido; si no, asignar literal JSON de cadena vacía.
+            if [ ! -s "$FILE" ]; then
+              code_content="\"\""
+            else
+              code_content=$(cat "$FILE" | jq -Rs .)
+            fi
+      
+            # Crear el payload JSON usando el contenido ya escapado.
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
               --arg code "$code_content" \
@@ -60,7 +67,7 @@ jobs:
                 options: { "temperature": 0.2 }
               }')
       
-            # Enviar la solicitud a la API y almacenar la respuesta
+            # Enviar la solicitud a la API y obtener la respuesta
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
               --http1.1 \
               -H "Content-Type: application/json" \
