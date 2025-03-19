@@ -24,48 +24,27 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Run Docker Compose
+      - name: Run Docker Compose for Ollama
         run: |
           docker-compose up -d --no-deps ollama
-
-      - name: Test API Connection
-        id: test_connection
-        env:
-          OLLAMA_API: http://localhost:11434
-          MODEL_LLM: codellama:7b
+          
+      - name: Download and Initialize CodeLlama Model
         run: |
-          echo "Probando conexión a la API en $OLLAMA_API..."
-
-          # Crear un payload básico para probar el modelo
-          TEST_PAYLOAD=$(jq -n \
-            --arg model "codellama:7b" \
-            --arg prompt "Hola, este es un test básico del modelo." \
-            '{
-              model: $model,
-              prompt: $prompt,
-              stream: false,
-              options: { "temperature": 0.2, "max_tokens": 10 }
-            }')
-
-          # Enviar la solicitud al endpoint con el payload básico
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$OLLAMA_API/api/generate" \
-            -H "Content-Type: application/json" \
-            -d "$TEST_PAYLOAD")
-
-          # Validar la respuesta
-          if [ "$response" -ne 200 ]; then
-            echo "Error: No se pudo conectar al modelo. Código de respuesta HTTP: $response"
+          echo "Descargando e inicializando el modelo CodeLlama..."
+          docker exec ollama ollama pull codellama:7b
+          
+      - name: Test Model
+        run: |
+          echo "Probando el modelo..."
+          result=$(docker exec ollama ollama run codellama:7b "Hello, this is a test.")
+          if [ $? -ne 0 ]; then
+            echo "Error: No se pudo ejecutar el modelo"
             exit 1
           fi
-
-          echo "Conexión exitosa al modelo. Código de respuesta HTTP: $response"
+          echo "Modelo probado exitosamente"
 
       - name: Analyze Modified Files
-        if: ${{ success() }}
         id: code_analysis
-        env:
-          OLLAMA_API: http://localhost:11434
-          MODEL_LLM: codellama:7b
         run: |
           echo "Iniciando análisis de archivos modificados..."
 
@@ -102,38 +81,14 @@ jobs:
               echo "Usando prompt desde archivo."
             fi
 
-            # Leer el contenido del archivo de manera segura
-            code_content=$(cat "$FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\r')
+            # Leer el contenido del archivo
+            code_content=$(cat "$FILE")
             
-            # Crear el payload JSON de manera segura
-            JSON_PAYLOAD=$(jq -n \
-              --arg model "$MODEL_LLM" \
-              --arg code "$code_content" \
-              --arg prompt "$prompt" \
-              '{
-                model: $model,
-                prompt: ("Code:\n```\n" + $code + "\n```\n" + $prompt),
-                stream: false,
-                options: { "temperature": 0.2, "max_tokens": 500 }
-              }')
+            # Ejecutar el análisis usando el modelo
+            echo "Analizando archivo con CodeLlama..."
+            review_text=$(docker exec ollama ollama run codellama:7b "Code Review: $code_content\n\nPrompt: $prompt")
             
-            # Enviar la solicitud a la API y obtener la respuesta con manejo de errores
-            echo "Enviando solicitud a la API..."
-            response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
-              -H "Content-Type: application/json" \
-              -d "$JSON_PAYLOAD")
-            
-            # Verificar si la respuesta es válida
-            if echo "$response" | jq -e '.response' > /dev/null 2>&1; then
-              review_text=$(echo "$response" | jq -r '.response')
-              echo "Respuesta recibida correctamente."
-            else
-              echo "Error al obtener respuesta de la API para: $FILE"
-              echo "Respuesta recibida: $response"
-              review_text="Error al analizar este archivo. Por favor, revísalo manualmente."
-            fi
-            
-            # Acumular la revisión para este archivo en la variable suggestions
+            # Acumular la revisión para este archivo
             suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
           done
       
