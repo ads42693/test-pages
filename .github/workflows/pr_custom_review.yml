@@ -20,7 +20,7 @@ jobs:
       - name: Setup environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq
+          sudo apt-get install -y jq file
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
@@ -45,32 +45,65 @@ jobs:
           # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
+            
+            # Verificamos si el archivo existe
+            if [ ! -f "$FILE" ]; then
+              echo "Archivo no encontrado: $FILE"
+              continue
+            fi
+            
+            # Verificamos el tamaño del archivo
+            FILE_SIZE=$(stat -c%s "$FILE")
+            MAX_SIZE=500000 # ~500KB
+            if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
+              echo "Archivo demasiado grande para procesar: $FILE ($FILE_SIZE bytes)"
+              suggestions="${suggestions}\n## Revisión para $FILE\n\nArchivo demasiado grande para analizar automáticamente.\n\n-----------\n"
+              continue
+            fi
+            
+            # Verificamos si el archivo es de texto
+            if ! file "$FILE" | grep -q text; then
+              echo "Archivo no procesable como texto: $FILE"
+              suggestions="${suggestions}\n## Revisión para $FILE\n\nArchivo binario o no procesable como texto.\n\n-----------\n"
+              continue
+            fi
+            
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
             
-            # Leer el contenido del archivo y escaparlo en una cadena JSON válida
-            code_content=$(jq -R -s '.' < "$FILE")
+            # Leer el contenido del archivo de manera segura
+            code_content=$(cat "$FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\r')
             
-            # Crear el payload JSON.
-            # Se usa ltrimstr y rtrimstr para eliminar la comilla inicial y final que jq añade.
+            # Crear el payload JSON de manera segura
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
               --arg code "$code_content" \
               --arg prompt "$prompt" \
               '{
-                model: $model,
-                prompt: ("Code:\n```" + ($code | ltrimstr("\"") | rtrimstr("\"")) + "```\n" + $prompt),
+                model: $arg.model,
+                prompt: ("Code:\n```\n" + $arg.code + "\n```\n" + $arg.prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
             
-            # Enviar la solicitud a la API y obtener la respuesta
+            # Enviar la solicitud a la API y obtener la respuesta con manejo de errores
+            echo "Enviando solicitud a la API..."
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
               --http1.1 \
               -H "Content-Type: application/json" \
-              -d "$JSON_PAYLOAD" | jq -r '.response')
+              -d "$JSON_PAYLOAD")
+            
+            # Verificar si la respuesta es válida
+            if echo "$response" | jq -e '.response' > /dev/null 2>&1; then
+              review_text=$(echo "$response" | jq -r '.response')
+              echo "Respuesta recibida correctamente."
+            else
+              echo "Error al obtener respuesta de la API para: $FILE"
+              echo "Respuesta recibida: $response"
+              review_text="Error al analizar este archivo. Por favor, revísalo manualmente."
+            fi
             
             # Acumular la revisión para este archivo en la variable suggestions
-            suggestions="${suggestions}\n## Revisión para $FILE\n\n$response\n\n-----------\n"
+            suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
           done
       
           # Exportar la variable suggestions como variable de entorno
@@ -90,4 +123,3 @@ jobs:
               repo: context.repo.repo,
               body: comment
             });
-      
