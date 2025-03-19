@@ -28,6 +28,7 @@ jobs:
         id: test_conection
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
+          MODEL_LLM: codellama:7b
         run: |
           echo "Probando conexión a la API en $OLLAMA_API..."
           
@@ -42,7 +43,7 @@ jobs:
           # Probar el modelo con un payload básico
           echo "Probando el modelo con un payload básico..."
           TEST_PAYLOAD=$(jq -n \
-            --arg model "codellama:7b" \
+            --arg model "$MODEL_LLM" \
             --arg prompt "Hola, este es un test básico del modelo." \
             '{
               model: $model,
