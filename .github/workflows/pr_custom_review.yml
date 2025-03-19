@@ -25,25 +25,16 @@ jobs:
           git config --global user.email "actions@github.com"
 
       - name: Test API Connection
-        id: test_conection
+        id: test_connection
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
           MODEL_LLM: codellama:7b
         run: |
           echo "Probando conexión a la API en $OLLAMA_API..."
-          
-          # Verificar conexión al endpoint
-          response=$(curl -s -o /dev/null -w "%{http_code}" "$OLLAMA_API/api/generate")
-          if [ "$response" -ne 200 ]; then
-            echo "Error: No se pudo conectar a la API. Código de respuesta HTTP: $response"
-            exit 1
-          fi
-          echo "Conexión exitosa a la API. Código de respuesta HTTP: $response"
 
-          # Probar el modelo con un payload básico
-          echo "Probando el modelo con un payload básico..."
+          # Crear un payload básico para probar el modelo
           TEST_PAYLOAD=$(jq -n \
-            --arg model "$MODEL_LLM" \
+            --arg model "codellama:7b" \
             --arg prompt "Hola, este es un test básico del modelo." \
             '{
               model: $model,
@@ -51,18 +42,19 @@ jobs:
               stream: false,
               options: { "temperature": 0.2, "max_tokens": 10 }
             }')
-          model_response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
+
+          # Enviar la solicitud al endpoint con el payload básico
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$OLLAMA_API/api/generate" \
             -H "Content-Type: application/json" \
             -d "$TEST_PAYLOAD")
 
-          # Verificar si la respuesta del modelo es válida
-          if echo "$model_response" | jq -e '.response' > /dev/null 2>&1; then
-            echo "El modelo respondió correctamente: $(echo "$model_response" | jq -r '.response')"
-          else
-            echo "Error: El modelo no respondió correctamente."
-            echo "Respuesta recibida: $model_response"
+          # Validar la respuesta
+          if [ "$response" -ne 200 ]; then
+            echo "Error: No se pudo conectar al modelo. Código de respuesta HTTP: $response"
             exit 1
           fi
+
+          echo "Conexión exitosa al modelo. Código de respuesta HTTP: $response"
 
       - name: Analyze Modified Files
         if: ${{ success()}}
