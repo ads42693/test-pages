@@ -29,10 +29,17 @@ jobs:
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
         run: |
+          # Obtener el prompt desde el archivo
+          PROMPT_FILE=".github/prompts/code_review_prompt.txt"
+          if [ -f "$PROMPT_FILE" ]; then
+            prompt=$(cat "$PROMPT_FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ')
+            echo "Usando prompt desde archivo $PROMPT_FILE"
+          fi
+
           # 1. Encontrar todos los archivos modificados en el PR
           FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
           if [ -z "$FILES" ]; then
-            echo "No files to check."
+            echo "No hay archivos por revisar."
             exit 0
           fi
       
@@ -45,22 +52,7 @@ jobs:
           # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
-            
-            # Verificamos si el archivo existe
-            if [ ! -f "$FILE" ]; then
-              echo "Archivo no encontrado: $FILE"
-              continue
-            fi
-            
-            # Verificamos el tamaño del archivo
-            FILE_SIZE=$(stat -c%s "$FILE")
-            MAX_SIZE=500000 # ~500KB
-            if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
-              echo "Archivo demasiado grande para procesar: $FILE ($FILE_SIZE bytes)"
-              suggestions="${suggestions}\n## Revisión para $FILE\n\nArchivo demasiado grande para analizar automáticamente.\n\n-----------\n"
-              continue
-            fi
-            
+
             # Verificamos si el archivo es de texto
             if ! file "$FILE" | grep -q text; then
               echo "Archivo no procesable como texto: $FILE"
@@ -68,7 +60,7 @@ jobs:
               continue
             fi
             
-            prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
+            prompt="\nSer breve, revise este código, proporcione sugerencias y mejores prácticas de codificación, legibilidad y capacidad de mantenimiento. Si la respuesta no es muy extensa proporcione ejemplos de código para su sugerencia. Responda en español y en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
             
             # Leer el contenido del archivo de manera segura
             code_content=$(cat "$FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\r')
@@ -88,7 +80,6 @@ jobs:
             # Enviar la solicitud a la API y obtener la respuesta con manejo de errores
             echo "Enviando solicitud a la API..."
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
-              --http1.1 \
               -H "Content-Type: application/json" \
               -d "$JSON_PAYLOAD")
             
@@ -107,12 +98,12 @@ jobs:
           done
       
           # Exportar la variable suggestions como variable de entorno
-          echo "suggestions<<EOF" >> $GITHUB_ENV
-          echo -e "$suggestions" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "suggestions<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$suggestions" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Post Review Comment
-        if: env.suggestions != ''
+        if: ${{ steps.code_analysis.outputs.suggestions != '' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -123,4 +114,3 @@ jobs:
               repo: context.repo.repo,
               body: comment
             });
-            
