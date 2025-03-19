@@ -26,7 +26,7 @@ jobs:
 
       - name: Run Docker Compose
         run: |
-          docker-compose up -d
+          docker-compose up -d --no-deps ollama
 
       - name: Test API Connection
         id: test_connection
