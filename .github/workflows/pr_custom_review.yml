@@ -73,14 +73,14 @@ jobs:
             # Leer el contenido del archivo de manera segura
             code_content=$(cat "$FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\r')
             
-            # Crear el payload JSON de manera segura
+            # Crear el payload JSON de manera segura - CORREGIDO aquí la sintaxis del jq
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
               --arg code "$code_content" \
               --arg prompt "$prompt" \
               '{
-                model: $arg.model,
-                prompt: ("Code:\n```\n" + $arg.code + "\n```\n" + $arg.prompt),
+                model: $model,
+                prompt: ("Code:\n```\n" + $code + "\n```\n" + $prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
