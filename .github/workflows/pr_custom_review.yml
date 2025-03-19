@@ -31,52 +31,50 @@ jobs:
         run: |
           # 1. Encontrar todos los archivos modificados en el PR
           FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
-
           if [ -z "$FILES" ]; then
             echo "No files to check."
             exit 0
           fi
-
-          # 3. Revisar cada archivo modificado
+      
+          # Inicializamos la variable suggestions
+          suggestions="## Archivos Revisados\n"
+          for FILE in $FILES; do
+            suggestions="${suggestions}- $FILE\n"
+          done
+      
+          # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
-
-            # Leer el contenido del archivo y escapar caracteres especiales
-            content=$(cat "$FILE")
+      
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
-
-            # Crear el payload JSON
+      
+            # Crear el payload JSON usando --rawfile para leer el contenido del archivo directamente
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
-              --arg code "$content" \
+              --rawfile code "$FILE" \
               --arg prompt "$prompt" \
               '{
                 model: $model,
-                prompt: "Code: \($code) \($prompt)",
+                prompt: ("Code: " + $code + " " + $prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
-
-            # Enviar la solicitud a la API
+      
+            # Enviar la solicitud a la API y almacenar la respuesta
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
               --http1.1 \
               -H "Content-Type: application/json" \
               -d "$JSON_PAYLOAD" | jq -r '.response')
-
-            # Añadir el prefijo del nombre del archivo y las sugerencias
-            echo "## Revision para $FILE" >> suggestions.md
-            echo "" >> suggestions.md
-            echo "$suggestions" >> suggestions.md
-            echo "" >> suggestions.md
-            echo "-----------" >> suggestions.md
-            echo "" >> suggestions.md
+      
+            # Acumular la revisión para este archivo en la variable suggestions
+            suggestions="${suggestions}\n## Revisión para $FILE\n\n$response\n\n-----------\n"
           done
-
-          # Exportar todas las sugerencias como una variable de entorno
+      
+          # Exportar la variable suggestions como variable de entorno
           echo "suggestions<<EOF" >> $GITHUB_ENV
           echo -e "$suggestions" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-
+      
       - name: Post Review Comment
         if: env.suggestions != ''
         uses: actions/github-script@v7
@@ -89,3 +87,4 @@ jobs:
               repo: context.repo.repo,
               body: comment
             });
+      
