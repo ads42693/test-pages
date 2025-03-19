@@ -51,11 +51,11 @@ jobs:
             # Crear el payload JSON usando --rawfile para leer el contenido del archivo directamente
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
-              --rawfile code "$FILE" \
+              --arg code "$code_content" \
               --arg prompt "$prompt" \
               '{
                 model: $model,
-                prompt: ("Code: " + ($code | @json) + " " + $prompt),
+                prompt: ("Code:\n```" + ($code | fromjson) + "```\n" + $prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
