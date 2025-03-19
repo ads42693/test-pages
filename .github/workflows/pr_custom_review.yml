@@ -45,31 +45,30 @@ jobs:
           # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
-      
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
-      
-            # Leer el contenido del archivo y escaparlo correctamente usando jq -R -s
-            # Esto lee todo el archivo y lo convierte en un string JSON válido
+            
+            # Leer el contenido del archivo y escaparlo en una cadena JSON válida
             code_content=$(jq -R -s '.' < "$FILE")
-      
-            # Crear el payload JSON; usamos fromjson para quitar las comillas adicionales del string escapado
+            
+            # Crear el payload JSON.
+            # Se usa ltrimstr y rtrimstr para eliminar la comilla inicial y final que jq añade.
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
               --arg code "$code_content" \
               --arg prompt "$prompt" \
               '{
                 model: $model,
-                prompt: ("Code:\n```" + ($code | fromjson) + "```\n" + $prompt),
+                prompt: ("Code:\n```" + ($code | ltrimstr("\"") | rtrimstr("\"")) + "```\n" + $prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
-      
+            
             # Enviar la solicitud a la API y obtener la respuesta
             response=$(curl -s -X POST "$OLLAMA_API/api/generate" \
               --http1.1 \
               -H "Content-Type: application/json" \
               -d "$JSON_PAYLOAD" | jq -r '.response')
-      
+            
             # Acumular la revisión para este archivo en la variable suggestions
             suggestions="${suggestions}\n## Revisión para $FILE\n\n$response\n\n-----------\n"
           done
