@@ -57,28 +57,32 @@ jobs:
           echo "Conexión exitosa al modelo. Código de respuesta HTTP: $response"
 
       - name: Analyze Modified Files
-        if: ${{ success()}}
+        if: ${{ success() }}
         id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
           MODEL_LLM: codellama:7b
         run: |
+          echo "Iniciando análisis de archivos modificados..."
+
           # 1. Encontrar todos los archivos modificados en el PR
           FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
           if [ -z "$FILES" ]; then
             echo "No hay archivos por revisar."
             exit 0
           fi
+
+          echo "Archivos modificados encontrados: $FILES"
       
           # Inicializamos la variable suggestions con la lista de archivos
           suggestions="## Archivos Revisados\n"
           for FILE in $FILES; do
             suggestions="${suggestions}- $FILE\n"
           done
-      
+
           # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
-            echo "Reviewing file: $FILE"
+            echo "Revisando archivo: $FILE"
 
             # Verificamos si el archivo es de texto
             if ! file "$FILE" | grep -q text; then
@@ -97,7 +101,7 @@ jobs:
             # Leer el contenido del archivo de manera segura
             code_content=$(cat "$FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\r')
             
-            # Crear el payload JSON de manera segura - CORREGIDO aquí la sintaxis del jq
+            # Crear el payload JSON de manera segura
             JSON_PAYLOAD=$(jq -n \
               --arg model "$MODEL_LLM" \
               --arg code "$code_content" \
@@ -148,4 +152,3 @@ jobs:
               repo: context.repo.repo,
               body: comment
             });
-        
