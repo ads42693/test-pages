@@ -45,17 +45,12 @@ jobs:
           # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
-      
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
       
-            # Si el archivo está vacío, usar cadena vacía; de lo contrario, leer el contenido, escaparlo y eliminar las comillas exteriores.
-            if [ ! -s "$FILE" ]; then
-              code_content=""
-            else
-              code_content=$(cat "$FILE" | jq -Rs . | sed 's/^"//;s/"$//')
-            fi
+            # Leer el contenido del archivo directamente
+            code_content=$(cat "$FILE")
       
-            # Crear el payload JSON usando el contenido ya procesado
+            # Crear el payload JSON. --arg se encarga de escapar el contenido.
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
               --arg code "$code_content" \
@@ -93,4 +88,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: comment
-            });        
+            });
+      
