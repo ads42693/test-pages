@@ -55,7 +55,7 @@ jobs:
               --arg prompt "$prompt" \
               '{
                 model: $model,
-                prompt: ("Code: " + ($code | tostring) + " " + $prompt),
+                prompt: ("Code: " + ($code | @json) + " " + $prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
