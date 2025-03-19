@@ -34,7 +34,7 @@ jobs:
           PROMPT_FILE=".github/prompts/code_review_prompt.txt"
           if [ -f "$PROMPT_FILE" ]; then
             prompt=$(cat "$PROMPT_FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ')
-            echo "Usando prompt desde archivo $PROMPT_FILE"
+            echo "Usando prompt desde archivo."
           fi
 
           # 1. Encontrar todos los archivos modificados en el PR
@@ -60,9 +60,7 @@ jobs:
               suggestions="${suggestions}\n## Revisión para $FILE\n\nArchivo binario o no procesable como texto.\n\n-----------\n"
               continue
             fi
-            
-            prompt="\nSer breve, revise este código, proporcione sugerencias y mejores prácticas de codificación, legibilidad y capacidad de mantenimiento. Si la respuesta no es muy extensa proporcione ejemplos de código para su sugerencia. Responda en español y en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
-            
+                        
             # Leer el contenido del archivo de manera segura
             code_content=$(cat "$FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\r')
             
