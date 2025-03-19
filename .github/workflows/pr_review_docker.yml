@@ -20,13 +20,13 @@ jobs:
       - name: Setup environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq file docker.io
+          sudo apt-get install -y jq file docker-compose
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Run Docker Container
+      - name: Run Docker Compose
         run: |
-          docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+          docker-compose up -d
 
       - name: Test API Connection
         id: test_connection
@@ -157,8 +157,7 @@ jobs:
               body: comment
             });
 
-      - name: Stop Docker Container
+      - name: Stop Docker Compose
         if: always()
         run: |
-          docker stop ollama
-          docker rm ollama
+          docker-compose down
