@@ -28,6 +28,7 @@ jobs:
         id: code_analysis
         env:
           OLLAMA_API: ${{ secrets.OLLAMA_API_BASE }}
+          MODEL_LLM: codellama:7b
         run: |
           # Obtener el prompt desde el archivo
           PROMPT_FILE=".github/prompts/code_review_prompt.txt"
@@ -67,14 +68,14 @@ jobs:
             
             # Crear el payload JSON de manera segura - CORREGIDO aquí la sintaxis del jq
             JSON_PAYLOAD=$(jq -n \
-              --arg model "codellama:7b" \
+              --arg model "$MODEL_LLM" \
               --arg code "$code_content" \
               --arg prompt "$prompt" \
               '{
                 model: $model,
                 prompt: ("Code:\n```\n" + $code + "\n```\n" + $prompt),
                 stream: false,
-                options: { "temperature": 0.2 }
+                options: { "temperature": 0.2, "max_tokens": 500 }
               }')
             
             # Enviar la solicitud a la API y obtener la respuesta con manejo de errores
