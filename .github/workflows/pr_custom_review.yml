@@ -45,19 +45,21 @@ jobs:
           # 2. Revisar cada archivo modificado
           for FILE in $FILES; do
             echo "Reviewing file: $FILE"
+      
             prompt="\nRevise este código, proporcione sugerencias de mejora, mejores prácticas de codificación, mejore la legibilidad y la capacidad de mantenimiento. Elimine cualquier olor a código o antipatrón. Proporcione ejemplos de código para su sugerencia. Responda en formato markdown. Si el archivo no tiene código o no necesita cambios, diga 'No se necesitan cambios'."
       
-            # Leer el contenido del archivo directamente
-            code_content=$(cat "$FILE")
+            # Leer el contenido del archivo y escaparlo correctamente usando jq -R -s
+            # Esto lee todo el archivo y lo convierte en un string JSON válido
+            code_content=$(jq -R -s '.' < "$FILE")
       
-            # Crear el payload JSON. --arg se encarga de escapar el contenido.
+            # Crear el payload JSON; usamos fromjson para quitar las comillas adicionales del string escapado
             JSON_PAYLOAD=$(jq -n \
               --arg model "codellama:7b" \
               --arg code "$code_content" \
               --arg prompt "$prompt" \
               '{
                 model: $model,
-                prompt: ("Code:\n```" + $code + "```\n" + $prompt),
+                prompt: ("Code:\n```" + ($code | fromjson) + "```\n" + $prompt),
                 stream: false,
                 options: { "temperature": 0.2 }
               }')
