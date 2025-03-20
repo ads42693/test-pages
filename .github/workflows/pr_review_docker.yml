@@ -48,24 +48,32 @@ jobs:
         run: |
           echo "Iniciando análisis de archivos modificados..."
 
-          # 1. Encontrar todos los archivos modificados en el PR
-          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }})
+          # 1. Encontrar todos los archivos modificados en el PR y eliminar duplicados
+          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | sort -u)
           if [ -z "$FILES" ]; then
             echo "No hay archivos por revisar."
             exit 0
           fi
 
-          echo "Archivos modificados encontrados: $FILES"
+          echo "Archivos modificados encontrados:"
+          echo "$FILES"
       
           # Inicializamos la variable suggestions con la lista de archivos
           suggestions="## Archivos Revisados\n"
-          for FILE in $FILES; do
-            suggestions="${suggestions}- $FILE\n"
-          done
+          
+          # Usar un array para trackear archivos ya procesados
+          declare -A processed_files
 
           # 2. Revisar cada archivo modificado
-          for FILE in $FILES; do
+          while IFS= read -r FILE; do
+            # Verificar si el archivo ya fue procesado
+            if [ "${processed_files[$FILE]}" ]; then
+              echo "Archivo ya analizado anteriormente: $FILE"
+              continue
+            fi
+            
             echo "Revisando archivo: $FILE"
+            processed_files[$FILE]=1
 
             # Verificamos si el archivo es de texto
             if ! file "$FILE" | grep -q text; then
@@ -90,7 +98,7 @@ jobs:
             
             # Acumular la revisión para este archivo
             suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
-          done
+          done <<< "$FILES"
       
           # Exportar la variable suggestions como variable de entorno
           echo "suggestions<<EOF" >> $GITHUB_OUTPUT
