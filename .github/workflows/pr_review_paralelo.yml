@@ -1,8 +1,9 @@
 name: AI Code Review Paralelo
 
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review, review_requested, synchronize]
+#   pull_request:
+#     types: [opened, reopened, ready_for_review, review_requested, synchronize]
+  workflow_dispatch:
 
 permissions:
   pull-requests: write
