@@ -77,20 +77,23 @@ jobs:
             [ -f "$PROMPT_FILE" ] && prompt=$(cat "$PROMPT_FILE" | tr '\n' ' ')
             local code_content=$(cat "$FILE")
             
-            # Ejecutar análisis con parámetros optimizados
+            # Ejecutar análisis usando el modelo
             review_text=$(docker exec ollama ollama run codellama:7b \
-              --temperature 0.1 \
-              --top_p 0.1 \
-              --num_ctx 2048 \
-              "Review this code concisely:\n$code_content\n\n$prompt")
+              "Codigo:\n\n$code_content\n\nContexto: $prompt")
             
-            # Acumular la revisión
-            echo -e "\n## Revisión para $FILE\n\n$review_text\n\n-----------\n" >> "$GITHUB_OUTPUT"
+            # Crear archivo temporal para la revisión
+            echo -e "\n## Revisión para $FILE\n\n$review_text\n\n-----------\n" >> /tmp/reviews.txt
           }
 
           # Exportar la función y procesar archivos en paralelo
           export -f analyze_file
           echo "$FILES" | xargs -I {} -P 3 bash -c 'analyze_file "$@"' _ {}
+
+          # Recopilar todas las revisiones
+          if [ -f /tmp/reviews.txt ]; then
+            suggestions="${suggestions}$(cat /tmp/reviews.txt)"
+            rm /tmp/reviews.txt
+          fi
 
           # Exportar resultados finales
           echo "suggestions<<EOF" >> $GITHUB_OUTPUT
