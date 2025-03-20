@@ -3,9 +3,5 @@ Actuando como Líder DevOps con amplia experiencia, revisa este código consider
 OBLIGATORIO: Responder TODO en español.
 
 1. Utiliza formato markdown en tu respuesta.
-2. Brindar la información corta y estructurada.
+2. Brindar la información muy corta y estructurada.
 3. Explicación máximo en 5 líneas.
-
-Proporciona un análisis muy breve que incluya:
-- Resumen muy concreto
-- Solo 2 recomendaciones de mejora como máximo.
