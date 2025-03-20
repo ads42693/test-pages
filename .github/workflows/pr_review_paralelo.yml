@@ -1,9 +1,8 @@
-name: AI Code Review Docker
+name: AI Code Review Paralelo
 
 on:
-#   pull_request:
-#     types: [opened, reopened, ready_for_review, review_requested, synchronize]
-  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, ready_for_review, review_requested, synchronize]
 
 permissions:
   pull-requests: write
@@ -49,7 +48,7 @@ jobs:
         run: |
           echo "Iniciando análisis de archivos modificados..."
 
-          # 1. Encontrar todos los archivos modificados en el PR y eliminar duplicados
+          # 1. Encontrar todos los archivos modificados en el PR
           FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | sort -u)
           if [ -z "$FILES" ]; then
             echo "No hay archivos por revisar."
@@ -58,50 +57,42 @@ jobs:
 
           echo "Archivos modificados encontrados:"
           echo "$FILES"
-      
-          # Inicializamos la variable suggestions con la lista de archivos
+    
+          # Inicializar la variable de sugerencias
           suggestions="## Archivos Revisados\n"
-          
-          # Usar un array para trackear archivos ya procesados
-          declare -A processed_files
-
-          # 2. Revisar cada archivo modificado
-          while IFS= read -r FILE; do
-            # Verificar si el archivo ya fue procesado
-            if [ "${processed_files[$FILE]}" ]; then
-              echo "Archivo ya analizado anteriormente: $FILE"
-              continue
-            fi
+        
+          # Función para analizar un archivo
+          analyze_file() {
+            local FILE=$1
+            local PROMPT_FILE=".github/prompts/code_review_prompt.txt"
             
-            echo "Revisando archivo: $FILE"
-            processed_files[$FILE]=1
-
-            # Verificamos si el archivo es de texto
+            # Verificar si es archivo de texto
             if ! file "$FILE" | grep -q text; then
-              echo "Archivo no procesable como texto: $FILE"
-              suggestions="${suggestions}\n## Revisión para $FILE\n\nArchivo binario o no procesable como texto.\n\n-----------\n"
-              continue
+              echo "Archivo binario: $FILE"
+              return
             fi
             
-            # Obtener el prompt desde el archivo
-            PROMPT_FILE=".github/prompts/code_review_prompt.txt"
-            if [ -f "$PROMPT_FILE" ]; then
-              prompt=$(cat "$PROMPT_FILE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr '\n' ' ')
-              echo "Usando prompt desde archivo."
-            fi
+            # Leer prompt y contenido
+            local prompt=""
+            [ -f "$PROMPT_FILE" ] && prompt=$(cat "$PROMPT_FILE" | tr '\n' ' ')
+            local code_content=$(cat "$FILE")
+            
+            # Ejecutar análisis con parámetros optimizados
+            review_text=$(docker exec ollama ollama run codellama:7b \
+              --temperature 0.1 \
+              --top_p 0.1 \
+              --num_ctx 2048 \
+              "Review this code concisely:\n$code_content\n\n$prompt")
+            
+            # Acumular la revisión
+            echo -e "\n## Revisión para $FILE\n\n$review_text\n\n-----------\n" >> "$GITHUB_OUTPUT"
+          }
 
-            # Leer el contenido del archivo
-            code_content=$(cat "$FILE")
-            
-            # Ejecutar el análisis usando el modelo
-            echo "Analizando archivo con CodeLlama..."
-            review_text=$(docker exec ollama ollama run codellama:7b "Code Review: $code_content\n\nPrompt: $prompt")
-            
-            # Acumular la revisión para este archivo
-            suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
-          done <<< "$FILES"
-      
-          # Exportar la variable suggestions como variable de entorno
+          # Exportar la función y procesar archivos en paralelo
+          export -f analyze_file
+          echo "$FILES" | xargs -I {} -P 3 bash -c 'analyze_file "$@"' _ {}
+
+          # Exportar resultados finales
           echo "suggestions<<EOF" >> $GITHUB_OUTPUT
           echo -e "$suggestions" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
