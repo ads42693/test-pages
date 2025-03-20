@@ -87,7 +87,7 @@ jobs:
 
           # Exportar la función y procesar archivos en paralelo
           export -f analyze_file
-          echo "$FILES" | xargs -I {} -P 3 bash -c 'analyze_file "$@"' _ {}
+          echo "$FILES" | xargs -I {} -P 5 bash -c 'analyze_file "$@"' _ {}
 
           # Recopilar todas las revisiones
           if [ -f /tmp/reviews.txt ]; then
