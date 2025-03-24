@@ -1,0 +1,122 @@
+name: AI Code Review Paralelo
+
+on:
+#   pull_request:
+#     types: [opened, reopened, ready_for_review, review_requested, synchronize]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  code_review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq file docker-compose
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Run Docker Compose for Ollama
+        run: |
+          docker-compose up -d --no-deps ollama
+          
+      - name: Download and Initialize CodeLlama Model
+        run: |
+          echo "Descargando e inicializando el modelo CodeLlama..."
+          docker exec ollama ollama pull codellama:7b
+          
+      - name: Test Model
+        run: |
+          echo "Probando el modelo..."
+          result=$(docker exec ollama ollama run codellama:7b "Hello, this is a test.")
+          if [ $? -ne 0 ]; then
+            echo "Error: No se pudo ejecutar el modelo"
+            exit 1
+          fi
+          echo "Modelo probado exitosamente"
+
+      - name: Analyze Modified Files
+        id: code_analysis
+        run: |
+          echo "Iniciando análisis de archivos modificados..."
+
+          # 1. Encontrar todos los archivos modificados en el PR
+          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | sort -u)
+          if [ -z "$FILES" ]; then
+            echo "No hay archivos por revisar."
+            exit 0
+          fi
+
+          echo "Archivos modificados encontrados:"
+          echo "$FILES"
+    
+          # Inicializar la variable de sugerencias
+          suggestions="## Archivos Revisados\n"
+        
+          # Función para analizar un archivo
+          analyze_file() {
+            local FILE=$1
+            local PROMPT_FILE=".github/prompts/code_review_prompt.txt"
+            
+            # Verificar si es archivo de texto
+            if ! file "$FILE" | grep -q text; then
+              echo "Archivo binario: $FILE"
+              return
+            fi
+            
+            # Leer prompt y contenido
+            local prompt=""
+            [ -f "$PROMPT_FILE" ] && prompt=$(cat "$PROMPT_FILE" | tr '\n' ' ')
+            local code_content=$(cat "$FILE")
+            
+            # Ejecutar análisis usando el modelo
+            review_text=$(docker exec ollama ollama run codellama:7b \
+              "Codigo:\n\n$code_content\n\nContexto: $prompt")
+            
+            # Crear archivo temporal para la revisión
+            echo -e "\n## Revisión para $FILE\n\n$review_text\n\n-----------\n" >> /tmp/reviews.txt
+          }
+
+          # Exportar la función y procesar archivos en paralelo
+          export -f analyze_file
+          echo "$FILES" | xargs -I {} -P 5 bash -c 'analyze_file "$@"' _ {}
+
+          # Recopilar todas las revisiones
+          if [ -f /tmp/reviews.txt ]; then
+            suggestions="${suggestions}$(cat /tmp/reviews.txt)"
+            rm /tmp/reviews.txt
+          fi
+
+          # Exportar resultados finales
+          echo "suggestions<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$suggestions" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Post Review Comment
+        if: ${{ steps.code_analysis.outputs.suggestions != '' }}
+        env:
+          suggestions: ${{ steps.code_analysis.outputs.suggestions }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## 📝 Análisis Automático\n\n${process.env.suggestions}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Stop Docker Compose
+        if: always()
+        run: |
+          docker-compose down

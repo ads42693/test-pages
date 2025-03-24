@@ -1,0 +1,131 @@
+name: AI Code Review Docker
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, review_requested, synchronize]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  code_review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq file docker-compose
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Run Docker Compose for Ollama
+        run: |
+          docker-compose up -d --no-deps ollama
+          
+      - name: Download and Initialize CodeLlama Model
+        run: |
+          echo "Descargando e inicializando el modelo CodeLlama..."
+          docker exec ollama ollama pull codellama:7b
+          
+      - name: Test Model
+        run: |
+          echo "Probando el modelo..."
+          result=$(docker exec ollama ollama run codellama:7b "Hello, this is a test.")
+          if [ $? -ne 0 ]; then
+            echo "Error: No se pudo ejecutar el modelo"
+            exit 1
+          fi
+          echo "Modelo probado exitosamente"
+
+      - name: Analyze Modified Files
+        id: code_analysis
+        run: |
+          echo "Iniciando análisis de archivos modificados..."
+
+          # 1. Encontrar todos los archivos modificados en el PR y eliminar duplicados
+          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }} HEAD | sort -u)
+          if [ -z "$FILES" ]; then
+            echo "No hay archivos por revisar."
+            exit 0
+          fi
+
+          echo "Archivos modificados encontrados:"
+          echo "$FILES"
+      
+          # Inicializamos la variable suggestions con la lista de archivos
+          suggestions="## Archivos Revisados\n"
+          
+          # Usar un array para trackear archivos ya procesados
+          declare -A processed_files
+
+          # 2. Revisar cada archivo modificado
+          while IFS= read -r FILE; do
+            # Verificar si el archivo ya fue procesado
+            if [ "${processed_files[$FILE]}" ]; then
+              echo "Archivo ya analizado anteriormente: $FILE"
+              continue
+            fi
+            
+            echo "Revisando archivo: $FILE"
+            processed_files[$FILE]=1
+
+            # Verificamos si el archivo es de texto
+            if ! file "$FILE" | grep -q text; then
+              echo "Archivo no procesable como texto: $FILE"
+              suggestions="${suggestions}\n## Revisión para $FILE\n\nArchivo binario o no procesable como texto.\n\n-----------\n"
+              continue
+            fi
+            
+            # Obtener los cambios del archivo con contexto
+            changed_content=$(git diff origin/${{ github.base_ref }} HEAD -- "$FILE" | sed -n '/^+/!d;/^+++/d;s/^+//p')
+            
+            if [ -z "$changed_content" ]; then
+              echo "No se encontraron cambios en el contenido del archivo: $FILE"
+              continue
+            fi
+
+            # Obtener contexto de los cambios de manera más precisa
+            file_context=$(git diff -U0 origin/${{ github.base_ref }} HEAD -- "$FILE" | grep -E '^@@.*@@' | sed -E 's/@@ -[0-9]+(,[0-9]+)? \+([0-9]+(,[0-9]+)?) @@.*/\2/')
+            
+            # Preparar el contenido para el análisis de manera más estructurada
+            analysis_content="📄 $FILE | 📝 Líneas: $file_context | ✨ Cambios: $changed_content"
+            
+            # Ejecutar el análisis usando el modelo con un prompt más específico
+            echo "Analizando cambios con CodeLlama..."
+            review_text=$(docker exec ollama ollama run codellama:7b "En Español y en formato Markdown. Revisa muy rapido y breve (resumen de dos lineas muy corto y conciso) solo las líneas modificadas:\n\n${analysis_content}")
+
+            # Acumular la revisión para este archivo
+            suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
+          done <<< "$FILES"
+      
+          # Exportar la variable suggestions como variable de entorno
+          echo "suggestions<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$suggestions" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Post Review Comment
+        if: ${{ steps.code_analysis.outputs.suggestions != '' }}
+        env:
+          suggestions: ${{ steps.code_analysis.outputs.suggestions }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## 📝 Análisis Automático\n\n${process.env.suggestions}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Stop Docker Compose
+        if: always()
+        run: |
+          docker-compose down
