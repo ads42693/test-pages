@@ -90,26 +90,28 @@ jobs:
               echo "Usando prompt desde archivo."
             fi
 
-            # Obtener los cambios del archivo
-            changed_content=$(git diff origin/${{ github.base_ref }} HEAD -- "$FILE" | grep '^+' | grep -v '^+++' | sed 's/^+//')
+            # Obtener los cambios del archivo con contexto
+            changed_content=$(git diff origin/${{ github.base_ref }} HEAD -- "$FILE" | grep -E '^\+.*' | grep -v '^\+\+\+' | while read -r line; do
+              echo "${line#\+}"
+            done)
             
             if [ -z "$changed_content" ]; then
               echo "No se encontraron cambios en el contenido del archivo: $FILE"
               continue
             fi
 
-            # Obtener contexto de los cambios (líneas modificadas)
-            file_context=$(git diff -U0 origin/${{ github.base_ref }} HEAD -- "$FILE" | grep '^@@' | sed 's/^@@\(.*\)@@.*/\1/')
+            # Obtener contexto de los cambios de manera más precisa
+            file_context=$(git diff -U0 origin/${{ github.base_ref }} HEAD -- "$FILE" | grep -E '^@@.*@@' | sed -E 's/@@ -[0-9]+(,[0-9]+)? \+([0-9]+(,[0-9]+)?) @@.*/Línea: \2/')
             
-            # Preparar el contenido para el análisis
-            analysis_content="Archivo: $FILE\n\nCambios en líneas:\n$file_context\n\nCambios realizados:\n$changed_content"
+            # Preparar el contenido para el análisis de manera más estructurada
+            analysis_content="📄 Archivo: $FILE | 📍 Cambios en: $file_context | ✏️ Modificaciones: $changed_content"
             
-            # Ejecutar el análisis usando el modelo
+            # Ejecutar el análisis usando el modelo con un prompt más específico
             echo "Analizando cambios con CodeLlama..."
             if [ -n "$prompt" ]; then
-              review_text=$(docker exec ollama ollama run codellama:7b "${prompt}\n\nAnálisis solicitado para:\n${analysis_content}")
+              review_text=$(docker exec ollama ollama run codellama:7b "${prompt}\n\nAnaliza solo estas líneas modificadas:\n${analysis_content}\n\nProporciona un análisis breve y conciso.")
             else
-              review_text=$(docker exec ollama ollama run codellama:7b "Realiza un code review conciso enfocándote solo en estos cambios:\n\n${analysis_content}")
+              review_text=$(docker exec ollama ollama run codellama:7b "Realiza un code review muy conciso SOLO de estas líneas modificadas:\n\n${analysis_content}\n\nEnfócate únicamente en los cambios mostrados.")
             fi
             
             # Acumular la revisión para este archivo
