@@ -99,7 +99,7 @@ jobs:
             
             # Ejecutar el análisis usando el modelo con un prompt más específico
             echo "Analizando cambios con CodeLlama..."
-            review_text=$(docker exec ollama ollama run codellama:7b "${Analiza muy rapido y breve solo estas líneas modificadas:\n${analysis_content}\n\nProporciona un análisis breve y conciso de una linea.")
+            review_text=$(docker exec ollama ollama run codellama:7b "Analiza muy rapido y breve solo estas líneas modificadas:\n${analysis_content}\n\nProporciona un análisis breve y conciso de una linea.")
 
             # Acumular la revisión para este archivo
             suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
