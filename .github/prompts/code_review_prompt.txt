@@ -1,3 +1,0 @@
-Actua como Líder DevOps, haz un resumen muy corto de una línea.
-
-OBLIGATORIO: Responder TODO en español y en formato Markdown.
