@@ -90,12 +90,23 @@ jobs:
               echo "Usando prompt desde archivo."
             fi
 
-            # Leer el contenido del archivo
-            code_content=$(cat "$FILE")
+            # Obtener solo las líneas modificadas del archivo
+            changed_content=$(git diff origin/${{ github.base_ref }}..origin/${{ github.head_ref }} -- "$FILE" | grep -E '^\+' | grep -v '^\+\+\+' | sed 's/^\+//')
+            
+            if [ -z "$changed_content" ]; then
+              echo "No se encontraron cambios en el contenido del archivo: $FILE"
+              continue
+            fi
+
+            # Agregar contexto sobre la ubicación de los cambios
+            file_context=$(git diff --unified=0 origin/${{ github.base_ref }}..origin/${{ github.head_ref }} -- "$FILE" | grep -E '^@@')
+            
+            # Preparar el contenido para el análisis
+            analysis_content="Archivo: $FILE\n\nUbicación de los cambios:\n$file_context\n\nLíneas modificadas:\n$changed_content"
             
             # Ejecutar el análisis usando el modelo
-            echo "Analizando archivo con CodeLlama..."
-            review_text=$(docker exec ollama ollama run codellama:7b "Code Review: $code_content\n\nPrompt: $prompt")
+            echo "Analizando cambios con CodeLlama..."
+            review_text=$(docker exec ollama ollama run codellama:7b "Prompt: $prompt \n\nAnaliza solo las siguientes líneas modificadas:\n\n$analysis_content")
             
             # Acumular la revisión para este archivo
             suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
