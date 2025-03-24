@@ -91,9 +91,7 @@ jobs:
             fi
 
             # Obtener los cambios del archivo con contexto
-            changed_content=$(git diff origin/${{ github.base_ref }} HEAD -- "$FILE" | grep -E '^\+.*' | grep -v '^\+\+\+' | while read -r line; do
-              echo "${line#\+}"
-            done)
+            changed_content=$(git diff origin/${{ github.base_ref }} HEAD -- "$FILE" | sed -n '/^+/!d;/^+++/d;s/^+//p')
             
             if [ -z "$changed_content" ]; then
               echo "No se encontraron cambios en el contenido del archivo: $FILE"
@@ -101,10 +99,10 @@ jobs:
             fi
 
             # Obtener contexto de los cambios de manera más precisa
-            file_context=$(git diff -U0 origin/${{ github.base_ref }} HEAD -- "$FILE" | grep -E '^@@.*@@' | sed -E 's/@@ -[0-9]+(,[0-9]+)? \+([0-9]+(,[0-9]+)?) @@.*/Línea: \2/')
+            file_context=$(git diff -U0 origin/${{ github.base_ref }} HEAD -- "$FILE" | grep -E '^@@.*@@' | sed -E 's/@@ -[0-9]+(,[0-9]+)? \+([0-9]+(,[0-9]+)?) @@.*/\2/')
             
             # Preparar el contenido para el análisis de manera más estructurada
-            analysis_content="📄 Archivo: $FILE | 📍 Cambios en: $file_context | ✏️ Modificaciones: $changed_content"
+            analysis_content="📄 $FILE | 📝 Líneas: $file_context | ✨ Cambios: $changed_content"
             
             # Ejecutar el análisis usando el modelo con un prompt más específico
             echo "Analizando cambios con CodeLlama..."
