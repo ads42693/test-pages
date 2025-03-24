@@ -50,7 +50,7 @@ jobs:
           echo "Iniciando análisis de archivos modificados..."
 
           # 1. Encontrar todos los archivos modificados en el PR y eliminar duplicados
-          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }}..origin/${{ github.head_ref }} | sort -u)
+          FILES=$(git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }} HEAD | sort -u)
           if [ -z "$FILES" ]; then
             echo "No hay archivos por revisar."
             exit 0
@@ -90,23 +90,23 @@ jobs:
               echo "Usando prompt desde archivo."
             fi
 
-            # Obtener solo las líneas modificadas del archivo
-            changed_content=$(git diff origin/${{ github.base_ref }}..origin/${{ github.head_ref }} -- "$FILE" | grep -E '^\+' | grep -v '^\+\+\+' | sed 's/^\+//')
+            # Obtener los cambios del archivo
+            changed_content=$(git diff origin/${{ github.base_ref }} HEAD -- "$FILE" | grep '^+' | grep -v '^+++' | sed 's/^+//')
             
             if [ -z "$changed_content" ]; then
               echo "No se encontraron cambios en el contenido del archivo: $FILE"
               continue
             fi
 
-            # Agregar contexto sobre la ubicación de los cambios
-            file_context=$(git diff --unified=0 origin/${{ github.base_ref }}..origin/${{ github.head_ref }} -- "$FILE" | grep -E '^@@')
+            # Obtener contexto de los cambios (líneas modificadas)
+            file_context=$(git diff -U0 origin/${{ github.base_ref }} HEAD -- "$FILE" | grep '^@@' | sed 's/^@@\(.*\)@@.*/\1/')
             
             # Preparar el contenido para el análisis
-            analysis_content="Archivo: $FILE\n\nUbicación de los cambios:\n$file_context\n\nLíneas modificadas:\n$changed_content"
+            analysis_content="Archivo: $FILE\n\nCambios en líneas:\n$file_context\n\nCambios realizados:\n$changed_content"
             
             # Ejecutar el análisis usando el modelo
             echo "Analizando cambios con CodeLlama..."
-            review_text=$(docker exec ollama ollama run codellama:7b "Prompt: $prompt \n\nAnaliza solo las siguientes líneas modificadas:\n\n$analysis_content")
+            review_text=$(docker exec ollama ollama run codellama:7b "Por favor revisa los siguientes cambios y proporciona un análisis conciso:\n\n$analysis_content")
             
             # Acumular la revisión para este archivo
             suggestions="${suggestions}\n## Revisión para $FILE\n\n$review_text\n\n-----------\n"
