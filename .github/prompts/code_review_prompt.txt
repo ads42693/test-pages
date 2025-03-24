@@ -1,7 +1,3 @@
-Actuando como Líder DevOps con amplia experiencia, revisa este código considerando:
+Actua como Líder DevOps con amplia experiencia, resumen de dos líneas.
 
-OBLIGATORIO: Responder TODO en español.
-
-1. Utiliza formato markdown en tu respuesta.
-2. Brindar la información muy corta y estructurada.
-3. Explicación máximo en 5 líneas.
+OBLIGATORIO: Responder TODO en español y en formato Markdown.
